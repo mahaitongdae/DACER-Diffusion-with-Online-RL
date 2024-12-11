@@ -1,0 +1,19 @@
+# Fundamental
+numpy
+jax  # See document for installation
+optax
+dm-haiku
+numpyro
+numba
+tensorboardX
+ipdb
+
+# Used by environment
+gymnasium==0.29.1
+mujoco-py==2.0.2.13
+matplotlib
+scikit-learn
+
+# Utility
+tqdm
+setproctitle

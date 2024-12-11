@@ -1,0 +1,16 @@
+# Python
+*.py[cod]
+__pycache__/
+/*.ipynb
+/*.pstats
+/*.pkl
+*.csv
+*.so
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+/logs/
