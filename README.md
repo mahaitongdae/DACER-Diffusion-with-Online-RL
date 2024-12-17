@@ -1,5 +1,14 @@
-# ReLax
-Reinforcement Learning with JAX.
+# DACER
+
+This is the official repository of
+
+**Diffusion Actor-Critic with Entropy Regulator**,
+
+<p align="left">
+<a href='https://arxiv.org/abs/2405.15177' style='padding-left: 0.5rem;'>
+    <img src='https://img.shields.io/badge/arXiv-PDF-red?style=flat&logo=arXiv&logoColor=wihte' alt='arXiv PDF'>
+</a>
+</p>
 
 ## Installation
 
@@ -28,5 +37,28 @@ chmod +x run_experiments.sh
 ./run_experiments.sh "0 1 2"
 ```
 
+## To Do
+
+The code is under cleaning and will be released gradually.
+
+- [ ] improve docs
+- [ ] more diffusion-based code
+- [x] training code
+
+
+## Citation
+
+If you find this repo useful, please consider giving us a star 🌟 and citing our related paper.
+
+```bibtex
+@article{wang2024diffusion,
+  title={Diffusion Actor-Critic with Entropy Regulator},
+  author={Wang, Yinuo and Wang, Likun and Jiang, Yuxuan and Zou, Wenjun and Liu, Tong and Song, Xujie and Wang, Wenxuan and Xiao, Liming and Wu, Jiang and Duan, Jingliang and Shengbo Eben Li},
+  journal={arXiv preprint arXiv:2405.15177},
+  year={2024}
+}
+```
+
 ## Tips
-search "other envs" in the code to find the parameters for other mujoco environments. The existing parameters in the code are used for Humanoid-v3 and HalfCheetah-v3.
+1. Search "other envs" in the code to find the parameters for other mujoco environments. The existing parameters in the code are used for Humanoid-v3 and HalfCheetah-v3.
+2. The version of MuJoCo is mujoco210.
