@@ -18,7 +18,7 @@ conda create -n relax python=3.11 numpy tqdm tensorboardX matplotlib scikit-lear
 conda activate relax
 
 # One of: Install jax WITH CUDA 
-pip install --upgrade "jax[cuda12]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+pip install --upgrade "jax[cuda12]==0.4.27" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # Install package
 pip install -r requirements.txt
@@ -42,7 +42,7 @@ chmod +x run_experiments.sh
 The code is under cleaning and will be released gradually.
 
 - [ ] improve docs
-- [ ] more diffusion-based code
+- [x] more diffusion-based code [DIPO, QSM. QVPO(other branch)]
 - [x] training code
 
 

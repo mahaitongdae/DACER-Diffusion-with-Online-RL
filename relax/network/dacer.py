@@ -3,6 +3,7 @@ from typing import Callable, NamedTuple, Sequence, Tuple
 
 import jax, jax.numpy as jnp
 import haiku as hk
+import math
 
 from relax.network.blocks import Activation, DistributionalQNet2, DACERPolicyNet
 from relax.network.common import WithSquashedGaussianPolicy
@@ -77,7 +78,7 @@ def create_dacer_net(
         target_q1_params = q1_params
         target_q2_params = q2_params
         policy_params = policy.init(policy_key, obs, act, 0)
-        log_alpha = jnp.array(1.0, dtype=jnp.float32) 
+        log_alpha = jnp.array(math.log(3), dtype=jnp.float32) # math.log(3) or math.log(5) choose one
         return DACERParams(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha)
 
     sample_obs = jnp.zeros((1, obs_dim))
