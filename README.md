@@ -1,4 +1,4 @@
-# DACER
+# [NeurIPS 2024] DACER
 
 This is the official repository of
 
