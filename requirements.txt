@@ -1,6 +1,6 @@
 # Fundamental
-numpy
-jax  # See document for installation
+# numpy
+# jax  # See document for installation
 optax
 dm-haiku
 numpyro
@@ -11,7 +11,7 @@ ipdb
 # Used by environment
 gymnasium==0.29.1
 dill==0.3.8
-mujoco-py
+free-mujoco-py
 matplotlib
 scikit-learn
 
