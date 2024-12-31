@@ -74,7 +74,8 @@ class Diffv2(Algorithm):
             q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha = state.params
             q1_opt_state, q2_opt_state, policy_opt_state, log_alpha_opt_state = state.opt_state
             step, mean_q1_std, mean_q2_std = state.step, state.mean_q1_std, state.mean_q2_std
-            next_eval_key, new_eval_key, new_q1_eval_key, new_q2_eval_key, log_alpha_key = jax.random.split(key, 5)
+            next_eval_key, new_eval_key, new_q1_eval_key, new_q2_eval_key, log_alpha_key, diffusion_time_key, diffusion_noise_key = jax.random.split(
+                key, 7)
 
             reward *= self.reward_scale
 
@@ -130,6 +131,13 @@ class Diffv2(Algorithm):
                 q1_mean, _ = self.agent.q(q1_params, obs, new_action)
                 q2_mean, _ = self.agent.q(q2_params, obs, new_action)
                 q_mean = jnp.minimum(q1_mean, q2_mean)
+                norm_q = (q_mean - q_mean.mean()) / q_mean.std()
+                q_weights = jnp.exp(norm_q.clip(-3., 3.))
+                q_weights = q_weights / jnp.exp(log_alpha)
+                def denoiser(t, x):
+                    return self.agent.policy(policy_params, obs, x, t)
+                t = jax.random.randint(diffusion_time_key, (obs.shape[0],), 0, self.agent.num_timesteps)
+                self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t, new_action)
                 policy_loss = jnp.mean(-q_mean)
                 return policy_loss
 

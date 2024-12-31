@@ -119,8 +119,10 @@ class GaussianDiffusion:
         loss = optax.l2_loss(noise_pred, noise)
         return loss.mean()
 
-    def weighted_q_loss(self, key: jax.Array, weights: jax.Array, model: DiffusionModel, t: jax.Array,
-                            x_start: jax.Array):
+    def weighted_p_loss(self, key: jax.Array, weights: jax.Array, model: DiffusionModel, t: jax.Array,
+                        x_start: jax.Array):
+        if len(weights.shape) == 1:
+            weights = weights.reshape(-1, 1)
         assert t.ndim == 1 and t.shape[0] == x_start.shape[0]
         noise = jax.random.normal(key, x_start.shape)
         x_noisy = jax.vmap(self.q_sample)(t, x_start, noise)

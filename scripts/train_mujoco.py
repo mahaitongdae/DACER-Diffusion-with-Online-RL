@@ -10,6 +10,7 @@ from relax.algorithm.dsact import DSACT
 from relax.algorithm.dacer import DACER
 from relax.algorithm.qsm import QSM
 from relax.algorithm.dipo import DIPO
+from relax.algorithm.diffusion_v2 import Diffv2
 from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
 from relax.network.dsact import create_dsact_net
@@ -24,7 +25,7 @@ from relax.utils.random_utils import seeding
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alg", type=str, default="dacer")
+    parser.add_argument("--alg", type=str, default="diffv2.py")
     parser.add_argument("--env", type=str, default="HalfCheetah-v3")
     parser.add_argument("--num_vec_envs", type=int, default=5)
     parser.add_argument("--hidden_num", type=int, default=3)
@@ -59,7 +60,13 @@ if __name__ == "__main__":
 
     gelu = partial(jax.nn.gelu, approximate=False)
 
-    if args.alg == "qsm":
+    if args.alg == 'diffv2.py':
+        def mish(x: jax.Array):
+            return x * jnp.tanh(jax.nn.softplus(x))
+        agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
+                                         num_timesteps=args.diffusion_steps)
+        algorithm = Diffv2(agent, params, lr=args.lr)
+    elif args.alg == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=64)
         algorithm = QSM(agent, params, lr=args.lr)
     elif args.alg == "sac":

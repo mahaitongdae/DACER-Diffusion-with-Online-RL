@@ -82,6 +82,9 @@ class DIPO(Algorithm):
             q1_opt_state, q2_opt_state, policy_opt_state = state.opt_state
             step = state.step
             next_eval_key, diffusion_time_key, diffusion_noise_key = jax.random.split(key, 3)
+            # jax why:
+            # If you need a new random number, you can use jax.random.split() to generate new subkeys:
+            # https://jax.readthedocs.io/en/latest/jax.random.html#module-jax.random
 
             # compute target q
             next_action = self.agent.get_action(next_eval_key, target_policy_params, next_obs)
