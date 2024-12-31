@@ -133,13 +133,12 @@ class Diffv2(Algorithm):
                 q_mean = jnp.minimum(q1_mean, q2_mean)
                 norm_q = (q_mean - q_mean.mean()) / q_mean.std()
                 q_weights = jnp.exp(norm_q.clip(-3., 3.))
-                q_weights = q_weights / jnp.exp(log_alpha)
+                q_weights = q_weights # / jnp.exp(log_alpha)
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (obs.shape[0],), 0, self.agent.num_timesteps)
-                self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t, new_action)
-                policy_loss = jnp.mean(-q_mean)
-                return policy_loss
+
+                return self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t, new_action)
 
             total_loss, policy_grads = jax.value_and_grad(policy_loss_fn)(policy_params)
 
