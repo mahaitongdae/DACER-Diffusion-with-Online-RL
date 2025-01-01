@@ -6,24 +6,22 @@ import haiku as hk
 
 from relax.algorithm.base import Algorithm
 from relax.network.dacer import DACERNet, DACERParams
-from relax.network.diffv2 import Diffv2Net
+from relax.network.diffv2 import Diffv2Net, Diffv2Params
 from relax.utils.experience import Experience
 from relax.utils.typing import Metric
 
 
-class DACEROptStates(NamedTuple):
+class Diffv2OptStates(NamedTuple):
     q1: optax.OptState
     q2: optax.OptState
     policy: optax.OptState
     log_alpha: optax.OptState
 
 
-class DACERTrainState(NamedTuple):
-    params: DACERParams
-    opt_state: DACEROptStates
+class Diffv2TrainState(NamedTuple):
+    params: Diffv2Params
+    opt_state: Diffv2OptStates
     step: int
-    mean_q1_std: float
-    mean_q2_std: float
     entropy: float
 
 class Diffv2(Algorithm):
@@ -31,7 +29,7 @@ class Diffv2(Algorithm):
     def __init__(
         self,
         agent: Diffv2Net,
-        params: DACERParams,
+        params: Diffv2Params,
         *,
         gamma: float = 0.99,
         lr: float = 1e-4,
@@ -53,28 +51,26 @@ class Diffv2(Algorithm):
         self.alpha_optim = optax.adam(alpha_lr)
         self.entropy = 0.0
 
-        self.state = DACERTrainState(
+        self.state = Diffv2TrainState(
             params=params,
-            opt_state=DACEROptStates(
+            opt_state=Diffv2OptStates(
                 q1=self.optim.init(params.q1),
                 q2=self.optim.init(params.q2),
                 policy=self.optim.init(params.policy),
                 log_alpha=self.alpha_optim.init(params.log_alpha),
             ),
             step=jnp.int32(0),
-            mean_q1_std=jnp.float32(-1.0),
-            mean_q2_std=jnp.float32(-1.0),
             entropy=jnp.float32(0.0),
         )
 
         @jax.jit
         def stateless_update(
-            key: jax.Array, state: DACERTrainState, data: Experience
-        ) -> Tuple[DACERTrainState, Metric]:
+            key: jax.Array, state: Diffv2TrainState, data: Experience
+        ) -> Tuple[Diffv2OptStates, Metric]:
             obs, action, reward, next_obs, done = data.obs, data.action, data.reward, data.next_obs, data.done
             q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha = state.params
             q1_opt_state, q2_opt_state, policy_opt_state, log_alpha_opt_state = state.opt_state
-            step, mean_q1_std, mean_q2_std = state.step, state.mean_q1_std, state.mean_q2_std
+            step = state.step
             next_eval_key, new_eval_key, new_q1_eval_key, new_q2_eval_key, log_alpha_key, diffusion_time_key, diffusion_noise_key = jax.random.split(
                 key, 7)
 
@@ -160,14 +156,15 @@ class Diffv2(Algorithm):
                 q_mean = get_min_q(obs, new_action)
                 norm_q = (q_mean - q_mean.mean()) / q_mean.std()
                 q_weights = jnp.exp(norm_q.clip(-3., 3.))
-                # q_weights = q_weights # / jnp.exp(log_alpha)
+                q_weights = q_weights / jnp.exp(log_alpha)
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (obs.shape[0],), 0, self.agent.num_timesteps)
+                loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t, new_action)
 
-                return self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t, new_action)
+                return loss, (q_weights, new_action)
 
-            total_loss, policy_grads = jax.value_and_grad(policy_loss_fn)(policy_params)
+            (total_loss, (q_weights, sampled_actions)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
 
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
@@ -212,12 +209,10 @@ class Diffv2(Algorithm):
             target_q1_params = delay_target_update(q1_params, target_q1_params, self.tau)
             target_q2_params = delay_target_update(q2_params, target_q2_params, self.tau)
 
-            state = DACERTrainState(
-                params=DACERParams(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha),
-                opt_state=DACEROptStates(q1=q1_opt_state, q2=q2_opt_state, policy=policy_opt_state, log_alpha=log_alpha_opt_state),
+            state = Diffv2TrainState(
+                params=Diffv2Params(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha),
+                opt_state=Diffv2OptStates(q1=q1_opt_state, q2=q2_opt_state, policy=policy_opt_state, log_alpha=log_alpha_opt_state),
                 step=step + 1,
-                mean_q1_std=mean_q1_std,
-                mean_q2_std=mean_q2_std,
                 entropy=entropy,
             )
             info = {
@@ -229,8 +224,11 @@ class Diffv2(Algorithm):
                 # "q2_std": jnp.mean(q2_std),
                 "policy_loss": total_loss,
                 "alpha": jnp.exp(log_alpha),
-                "mean_q1_std": mean_q1_std,
-                "mean_q2_std": mean_q2_std,
+                "q_weights_std": jnp.std(q_weights),
+                "q_weights_max": jnp.max(q_weights),
+                # "mean_q1_std": mean_q1_std,
+                # "mean_q2_std": mean_q2_std,
+
                 "entropy": entropy,
             }
             return state, info

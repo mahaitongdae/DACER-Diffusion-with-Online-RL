@@ -10,7 +10,7 @@ from relax.network.common import WithSquashedGaussianPolicy
 from relax.utils.diffusion import GaussianDiffusion
 from relax.utils.jax_utils import random_key_from_data
 
-class DACERParams(NamedTuple):
+class Diffv2Params(NamedTuple):
     q1: hk.Params
     q2: hk.Params
     target_q1: hk.Params
@@ -40,6 +40,7 @@ class Diffv2Net:
 
         key, noise_key = jax.random.split(key)
         action = self.diffusion.p_sample(key, model_fn, (*obs.shape[:-1], self.act_dim))
+        action = action + jax.random.normal(noise_key, action.shape) * jnp.exp(log_alpha) * 0.1
         return action.clip(-1, 1)
 
     def get_batch_actions(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array, q_func: Callable) -> jax.Array:
@@ -79,7 +80,7 @@ def create_diffv2_net(
     diffusion_hidden_sizes: Sequence[int],
     activation: Activation = jax.nn.relu,
     num_timesteps: int = 20,
-) -> Tuple[Diffv2Net, DACERParams]:
+) -> Tuple[Diffv2Net, Diffv2Params]:
     # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
     q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
     policy = hk.without_apply_rng(hk.transform(lambda obs, act, t: DACERPolicyNet(diffusion_hidden_sizes, activation)(obs, act, t)))
@@ -93,7 +94,7 @@ def create_diffv2_net(
         target_q2_params = q2_params
         policy_params = policy.init(policy_key, obs, act, 0)
         log_alpha = jnp.array(math.log(3), dtype=jnp.float32) # math.log(3) or math.log(5) choose one
-        return DACERParams(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha)
+        return Diffv2Params(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha)
 
     sample_obs = jnp.zeros((1, obs_dim))
     sample_act = jnp.zeros((1, act_dim))

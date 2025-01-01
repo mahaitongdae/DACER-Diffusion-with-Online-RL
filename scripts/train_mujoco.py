@@ -31,8 +31,8 @@ from relax.utils.log_diff import log_git_details
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--alg", type=str, default="diffv2")
-    parser.add_argument("--env", type=str, default="HalfCheetah-v4")
-    parser.add_argument("--suffix", type=str, default="diffv2_doubleq")
+    parser.add_argument("--env", type=str, default="HalfCheetah-v3")
+    parser.add_argument("--suffix", type=str, default="diff_v2_add_weights_add_exp_noise")
     parser.add_argument("--num_vec_envs", type=int, default=5)
     parser.add_argument("--hidden_num", type=int, default=3)
     parser.add_argument("--hidden_dim", type=int, default=256)
