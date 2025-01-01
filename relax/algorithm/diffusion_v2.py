@@ -80,36 +80,61 @@ class Diffv2(Algorithm):
 
             reward *= self.reward_scale
 
+            def get_min_q(s, a):
+                q1 = self.agent.q(q1_params, s, a)
+                q2 = self.agent.q(q2_params, s, a)
+                q = jnp.minimum(q1, q2)
+                return q
+
+            # # compute target q
+            # next_action = self.agent.get_action(next_eval_key, (policy_params, log_alpha), next_obs)
+            # next_q1_mean, _, next_q1_sample = self.agent.q_evaluate(new_q1_eval_key, target_q1_params, next_obs, next_action)
+            # next_q2_mean, _, next_q2_sample = self.agent.q_evaluate(new_q2_eval_key, target_q2_params, next_obs, next_action)
+            # next_q_mean = jnp.minimum(next_q1_mean, next_q2_mean)
+            # next_q_sample = jnp.where(next_q1_mean < next_q2_mean, next_q1_sample, next_q2_sample)
+            # q_target = next_q_mean
+            # q_target_sample = next_q_sample
+            # q_backup = reward + (1 - done) * self.gamma * q_target
+            # q_backup_sample = reward + (1 - done) * self.gamma * q_target_sample
+            #
+            # # update q
+            # def q_loss_fn(q_params: hk.Params, mean_q_std: float) -> jax.Array:
+            #     q_mean, q_std = self.agent.q(q_params, obs, action)
+            #     new_mean_q_std = jnp.mean(q_std)
+            #     mean_q_std = jax.lax.stop_gradient(
+            #         (mean_q_std == -1.0) * new_mean_q_std +
+            #         (mean_q_std != -1.0) * (self.tau * new_mean_q_std + (1 - self.tau) * mean_q_std)
+            #     )
+            #     q_backup_bounded = jax.lax.stop_gradient(q_mean + jnp.clip(q_backup_sample - q_mean, -3 * mean_q_std, 3 * mean_q_std))
+            #     q_std_detach = jax.lax.stop_gradient(jnp.maximum(q_std, 0))
+            #     epsilon = 0.1
+            #     q_loss = -(mean_q_std ** 2 + epsilon) * jnp.mean(
+            #         q_mean * jax.lax.stop_gradient(q_backup - q_mean) / (q_std_detach ** 2 + epsilon) +
+            #         q_std * ((jax.lax.stop_gradient(q_mean) - q_backup_bounded) ** 2 - q_std_detach ** 2) / (q_std_detach ** 3 + epsilon)
+            #     )
+            #     return q_loss, (q_mean, q_std, mean_q_std)
+            #
+            # (q1_loss, (q1_mean, q1_std, mean_q1_std)), q1_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q1_params, mean_q1_std)
+            # (q2_loss, (q2_mean, q2_std, mean_q2_std)), q2_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q2_params, mean_q2_std)
+
             # compute target q
-            next_action = self.agent.get_action(next_eval_key, (policy_params, log_alpha), next_obs)
-            next_q1_mean, _, next_q1_sample = self.agent.q_evaluate(new_q1_eval_key, target_q1_params, next_obs, next_action)
-            next_q2_mean, _, next_q2_sample = self.agent.q_evaluate(new_q2_eval_key, target_q2_params, next_obs, next_action)
-            next_q_mean = jnp.minimum(next_q1_mean, next_q2_mean)
-            next_q_sample = jnp.where(next_q1_mean < next_q2_mean, next_q1_sample, next_q2_sample)
-            q_target = next_q_mean
-            q_target_sample = next_q_sample
+            next_action = self.agent.get_batch_actions(next_eval_key, (policy_params, log_alpha), next_obs, get_min_q)
+            q1_target = self.agent.q(target_q1_params, next_obs, next_action)
+            q2_target = self.agent.q(target_q2_params, next_obs, next_action)
+            q_target = jnp.minimum(q1_target, q2_target)  # - jnp.exp(log_alpha) * next_logp
             q_backup = reward + (1 - done) * self.gamma * q_target
-            q_backup_sample = reward + (1 - done) * self.gamma * q_target_sample
 
-            # update q
-            def q_loss_fn(q_params: hk.Params, mean_q_std: float) -> jax.Array:
-                q_mean, q_std = self.agent.q(q_params, obs, action)
-                new_mean_q_std = jnp.mean(q_std)
-                mean_q_std = jax.lax.stop_gradient(
-                    (mean_q_std == -1.0) * new_mean_q_std +
-                    (mean_q_std != -1.0) * (self.tau * new_mean_q_std + (1 - self.tau) * mean_q_std)
-                )
-                q_backup_bounded = jax.lax.stop_gradient(q_mean + jnp.clip(q_backup_sample - q_mean, -3 * mean_q_std, 3 * mean_q_std))
-                q_std_detach = jax.lax.stop_gradient(jnp.maximum(q_std, 0))
-                epsilon = 0.1
-                q_loss = -(mean_q_std ** 2 + epsilon) * jnp.mean(
-                    q_mean * jax.lax.stop_gradient(q_backup - q_mean) / (q_std_detach ** 2 + epsilon) +
-                    q_std * ((jax.lax.stop_gradient(q_mean) - q_backup_bounded) ** 2 - q_std_detach ** 2) / (q_std_detach ** 3 + epsilon)
-                )
-                return q_loss, (q_mean, q_std, mean_q_std)
+            def q_loss_fn(q_params: hk.Params) -> jax.Array:
+                q = self.agent.q(q_params, obs, action)
+                q_loss = jnp.mean((q - q_backup) ** 2)
+                return q_loss
 
-            (q1_loss, (q1_mean, q1_std, mean_q1_std)), q1_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q1_params, mean_q1_std)
-            (q2_loss, (q2_mean, q2_std, mean_q2_std)), q2_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q2_params, mean_q2_std)
+            q1_loss, q1_grads = jax.value_and_grad(q_loss_fn)(q1_params)
+            q2_loss, q2_grads = jax.value_and_grad(q_loss_fn)(q2_params)
+            q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
+            q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
+            q1_params = optax.apply_updates(q1_params, q1_update)
+            q2_params = optax.apply_updates(q2_params, q2_update)
 
             def cal_entropy():
                 keys = jax.random.split(log_alpha_key, self.num_samples)
@@ -126,12 +151,6 @@ class Diffv2(Algorithm):
                 lambda: prev_entropy
             )
 
-            def get_min_q(s, a):
-                q1_mean, _ = self.agent.q(q1_params, s, a)
-                q2_mean, _ = self.agent.q(q2_params, s, a)
-                q_mean = jnp.minimum(q1_mean, q2_mean)
-                return jnp.minimum(q1_mean, q2_mean)
-
             # update policy
             def policy_loss_fn(policy_params) -> jax.Array:
                 new_action = self.agent.get_batch_actions(new_eval_key, (policy_params, log_alpha), obs, get_min_q)
@@ -141,7 +160,7 @@ class Diffv2(Algorithm):
                 q_mean = get_min_q(obs, new_action)
                 norm_q = (q_mean - q_mean.mean()) / q_mean.std()
                 q_weights = jnp.exp(norm_q.clip(-3., 3.))
-                q_weights = q_weights # / jnp.exp(log_alpha)
+                # q_weights = q_weights # / jnp.exp(log_alpha)
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (obs.shape[0],), 0, self.agent.num_timesteps)
