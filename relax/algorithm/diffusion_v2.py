@@ -123,10 +123,10 @@ class Diffv2(Algorithm):
             def q_loss_fn(q_params: hk.Params) -> jax.Array:
                 q = self.agent.q(q_params, obs, action)
                 q_loss = jnp.mean((q - q_backup) ** 2)
-                return q_loss
+                return q_loss, q
 
-            q1_loss, q1_grads = jax.value_and_grad(q_loss_fn)(q1_params)
-            q2_loss, q2_grads = jax.value_and_grad(q_loss_fn)(q2_params)
+            (q1_loss, q1), q1_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q1_params)
+            (q2_loss, q2), q2_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q2_params)
             q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
             q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
             q1_params = optax.apply_updates(q1_params, q1_update)
@@ -217,7 +217,9 @@ class Diffv2(Algorithm):
             )
             info = {
                 "q1_loss": q1_loss,
-                # "q1_mean": jnp.mean(q1_mean),
+                "q1_mean": jnp.mean(q1),
+                "q1_max": jnp.max(q1),
+                "q1_min": jnp.min(q1),
                 # "q1_std": jnp.mean(q1_std),
                 "q2_loss": q2_loss,
                 # "q2_mean": jnp.mean(q2_mean),
