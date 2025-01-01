@@ -5,7 +5,7 @@ import jax, jax.numpy as jnp
 import haiku as hk
 import math
 
-from relax.network.blocks import Activation, DistributionalQNet2, DACERPolicyNet
+from relax.network.blocks import Activation, DistributionalQNet2, DACERPolicyNet, QNet
 from relax.network.common import WithSquashedGaussianPolicy
 from relax.utils.diffusion import GaussianDiffusion
 from relax.utils.jax_utils import random_key_from_data
@@ -30,7 +30,7 @@ class DACERNet:
     @property
     def diffusion(self) -> GaussianDiffusion:
         return GaussianDiffusion(self.num_timesteps)
-    
+
     def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
         policy_params, log_alpha = policy_params
 
@@ -48,7 +48,7 @@ class DACERNet:
         log_alpha = -jnp.inf
         policy_params = (policy_params, log_alpha)
         return self.get_action(key, policy_params, obs)
-    
+
     def q_evaluate(
         self, key: jax.Array, q_params: hk.Params, obs: jax.Array, act: jax.Array
     ) -> Tuple[jax.Array, jax.Array, jax.Array]:
@@ -67,7 +67,8 @@ def create_dacer_net(
     activation: Activation = jax.nn.relu,
     num_timesteps: int = 20,
 ) -> Tuple[DACERNet, DACERParams]:
-    q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
+    # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
+    q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
     policy = hk.without_apply_rng(hk.transform(lambda obs, act, t: DACERPolicyNet(diffusion_hidden_sizes, activation)(obs, act, t)))
 
     @jax.jit

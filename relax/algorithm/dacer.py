@@ -24,7 +24,7 @@ class DACERTrainState(NamedTuple):
     mean_q1_std: float
     mean_q2_std: float
     entropy: float
-    
+
 class DACER(Algorithm):
 
     def __init__(
@@ -84,10 +84,9 @@ class DACER(Algorithm):
             next_q2_mean, _, next_q2_sample = self.agent.q_evaluate(new_q2_eval_key, target_q2_params, next_obs, next_action)
             next_q_mean = jnp.minimum(next_q1_mean, next_q2_mean)
             next_q_sample = jnp.where(next_q1_mean < next_q2_mean, next_q1_sample, next_q2_sample)
-            q_target = next_q_mean 
-            q_target_sample = next_q_sample 
+            q_target = next_q_mean
+            q_target_sample = next_q_sample
             q_backup = reward + (1 - done) * self.gamma * q_target
-            q_backup_sample = reward + (1 - done) * self.gamma * q_target_sample
 
             # update q
             def q_loss_fn(q_params: hk.Params, mean_q_std: float) -> jax.Array:
@@ -108,33 +107,33 @@ class DACER(Algorithm):
 
             (q1_loss, (q1_mean, q1_std, mean_q1_std)), q1_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q1_params, mean_q1_std)
             (q2_loss, (q2_mean, q2_std, mean_q2_std)), q2_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q2_params, mean_q2_std)
-            
+
             def cal_entropy():
                 keys = jax.random.split(log_alpha_key, self.num_samples)
                 actions = jax.vmap(self.agent.get_action, in_axes=(0, None, None), out_axes=1)(keys, (policy_params, jax.lax.stop_gradient(log_alpha)), obs)
                 entropy = jax.pure_callback(estimate_entropy, jax.ShapeDtypeStruct((), jnp.float32), actions)
                 entropy = jax.lax.stop_gradient(entropy)
                 return entropy
-            
+
             prev_entropy = state.entropy if hasattr(state, 'entropy') else jnp.float32(0.0)
-            
+
             entropy = jax.lax.cond(
                 step % self.delay_alpha_update == 0,
                 cal_entropy,
                 lambda: prev_entropy
             )
-            
+
             # update policy
             def policy_loss_fn(policy_params) -> jax.Array:
                 new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha), obs)
                 q1_mean, _ = self.agent.q(q1_params, obs, new_action)
                 q2_mean, _ = self.agent.q(q2_params, obs, new_action)
                 q_mean = jnp.minimum(q1_mean, q2_mean)
-                policy_loss = jnp.mean(-q_mean) 
+                policy_loss = jnp.mean(-q_mean)
                 return policy_loss
 
             total_loss, policy_grads = jax.value_and_grad(policy_loss_fn)(policy_params)
-            
+
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
                 log_alpha_loss = -jnp.mean(log_alpha * (-entropy + self.agent.target_entropy))
@@ -153,7 +152,7 @@ class DACER(Algorithm):
                     lambda params, opt_state: (params, opt_state),
                     params, opt_state
                 )
-                
+
             def delay_alpha_param_update(optim, params, opt_state):
                 return jax.lax.cond(
                     step % self.delay_alpha_update == 0,
@@ -161,7 +160,7 @@ class DACER(Algorithm):
                     lambda params, opt_state: (params, opt_state),
                     params, opt_state
                 )
-                
+
             def delay_target_update(params, target_params, tau):
                 return jax.lax.cond(
                     step % self.delay_update == 0,
@@ -205,6 +204,7 @@ class DACER(Algorithm):
 
     def get_policy_params(self):
         return (self.state.params.policy, self.state.params.log_alpha)
+
 
 def estimate_entropy(actions, num_components=3):  # (batch, sample, dim)
     import numpy as np

@@ -1,4 +1,5 @@
 import argparse
+import os.path
 from pathlib import Path
 import time
 from functools import partial
@@ -8,6 +9,7 @@ import jax, jax.numpy as jnp
 from relax.algorithm.sac import SAC
 from relax.algorithm.dsact import DSACT
 from relax.algorithm.dacer import DACER
+from relax.algorithm.dacer_doubleq import DACERDoubleQ
 from relax.algorithm.qsm import QSM
 from relax.algorithm.dipo import DIPO
 from relax.algorithm.diffusion_v2 import Diffv2
@@ -15,18 +17,22 @@ from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
 from relax.network.dsact import create_dsact_net
 from relax.network.dacer import create_dacer_net
+from relax.network.dacer_doubleq import create_dacer_doubleq_net
 from relax.network.qsm import create_qsm_net
 from relax.network.dipo import create_dipo_net
+from relax.network.diffv2 import create_diffv2_net
 from relax.trainer.off_policy import OffPolicyTrainer
 from relax.env import create_env, create_vector_env
 from relax.utils.experience import Experience, ObsActionPair
 from relax.utils.fs import PROJECT_ROOT
 from relax.utils.random_utils import seeding
+from relax.utils.log_diff import log_git_details
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alg", type=str, default="diffv2.py")
+    parser.add_argument("--alg", type=str, default="dacer")
     parser.add_argument("--env", type=str, default="HalfCheetah-v3")
+    parser.add_argument("--suffix", type=str, default="double q dacer")
     parser.add_argument("--num_vec_envs", type=int, default=5)
     parser.add_argument("--hidden_num", type=int, default=3)
     parser.add_argument("--hidden_dim", type=int, default=256)
@@ -36,7 +42,12 @@ if __name__ == "__main__":
     parser.add_argument("--total_step", type=int, default=int(1e6))
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=100)
+    parser.add_argument("--debug", action='store_true', default=False)
     args = parser.parse_args()
+
+    if args.debug:
+        from jax import config
+        config.update("jax_disable_jit", True)
 
     master_seed = args.seed
     master_rng, _ = seeding(master_seed)
@@ -60,10 +71,10 @@ if __name__ == "__main__":
 
     gelu = partial(jax.nn.gelu, approximate=False)
 
-    if args.alg == 'diffv2.py':
+    if args.alg == 'diffv2':
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
-        agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
+        agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
                                          num_timesteps=args.diffusion_steps)
         algorithm = Diffv2(agent, params, lr=args.lr)
     elif args.alg == "qsm":
@@ -80,6 +91,11 @@ if __name__ == "__main__":
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish, num_timesteps=args.diffusion_steps)
         algorithm = DACER(agent, params, lr=args.lr)
+    elif args.alg == "dacer_doubleq":
+        def mish(x: jax.Array):
+            return x * jnp.tanh(jax.nn.softplus(x))
+        agent, params = create_dacer_doubleq_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish, num_timesteps=args.diffusion_steps)
+        algorithm = DACERDoubleQ(agent, params, lr=args.lr)
     elif args.alg == "dipo":
         diffusion_buffer = TreeBuffer.from_example(
             ObsActionPair.create_example(obs_dim, act_dim),
@@ -97,6 +113,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid algorithm {args.alg}!")
 
+    exp_dir = PROJECT_ROOT / "logs" / args.env / (args.alg + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}')
     trainer = OffPolicyTrainer(
         env=env,
         algorithm=algorithm,
@@ -107,9 +124,9 @@ if __name__ == "__main__":
         evaluate_env=eval_env,
         save_policy_every=300000,
         warmup_with="random",
-        log_path=PROJECT_ROOT / "logs" / args.env /
-                 (args.alg + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}'),
+        log_path=exp_dir,
     )
 
     trainer.setup(Experience.create_example(obs_dim, act_dim, trainer.batch_size))
+    log_git_details(log_file=os.path.join(exp_dir, 'dacer.diff'))
     trainer.run(train_key)
