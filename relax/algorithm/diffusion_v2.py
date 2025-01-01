@@ -160,7 +160,7 @@ class Diffv2(Algorithm):
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (obs.shape[0],), 0, self.agent.num_timesteps)
-                loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t, new_action)
+                loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t, jax.lax.stop_gradient(new_action))
 
                 return loss, (q_weights, new_action)
 
