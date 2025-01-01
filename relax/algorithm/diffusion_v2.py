@@ -222,11 +222,11 @@ class Diffv2(Algorithm):
             )
             info = {
                 "q1_loss": q1_loss,
-                "q1_mean": jnp.mean(q1_mean),
-                "q1_std": jnp.mean(q1_std),
+                # "q1_mean": jnp.mean(q1_mean),
+                # "q1_std": jnp.mean(q1_std),
                 "q2_loss": q2_loss,
-                "q2_mean": jnp.mean(q2_mean),
-                "q2_std": jnp.mean(q2_std),
+                # "q2_mean": jnp.mean(q2_mean),
+                # "q2_std": jnp.mean(q2_std),
                 "policy_loss": total_loss,
                 "alpha": jnp.exp(log_alpha),
                 "mean_q1_std": mean_q1_std,

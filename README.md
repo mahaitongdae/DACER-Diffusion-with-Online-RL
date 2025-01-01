@@ -23,7 +23,16 @@ pip install --upgrade "jax[cuda12]==0.4.27" -f https://storage.googleapis.com/ja
 # Install package
 pip install -r requirements.txt
 pip install -e .
+
+# Install CUDA Forward compatibility packages
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
+sudo dpkg -i cuda-keyring_1.0-1_all.deb
+sudo apt update
+sudo apt install cuda-compat-12-6
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda-12.6/compat" # Add to ~/.bashrc
 ```
+
+
 
 ## Run
 ```bash

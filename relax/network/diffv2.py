@@ -45,12 +45,12 @@ class Diffv2Net:
     def get_batch_actions(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array, q_func: Callable) -> jax.Array:
         batch_flatten_obs = obs.repeat(self.act_batch_size, axis=0)
         batch_flatten_actions = self.get_action(key, policy_params, batch_flatten_obs)
-        batch_q = q_func(batch_flatten_obs, batch_flatten_actions).reshape(-1, self.act_dim).reshape(obs.shape[0], -1)
+        batch_q = q_func(batch_flatten_obs, batch_flatten_actions).reshape(-1, self.act_batch_size)
         max_q_idx = batch_q.argmax(axis=1)
-        batch_action = batch_flatten_actions.reshape(obs.shape[0], -1, obs.shape[-1]) # ?
+        batch_action = batch_flatten_actions.reshape(obs.shape[0], -1, self.act_dim) # ?
         slice = lambda x, y: x[y]
         # action: batch_size, repeat_size, idx: batch_size
-        best_action = jax.vmap(slice, (0, 0))(batch_q, max_q_idx)
+        best_action = jax.vmap(slice, (0, 0))(batch_action, max_q_idx)
         return best_action
 
 
