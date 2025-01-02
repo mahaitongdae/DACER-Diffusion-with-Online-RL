@@ -92,7 +92,7 @@ class GaussianDiffusion:
 
     def p_sample(self, key: jax.Array, model: DiffusionModel, shape: Tuple[int, ...]) -> jax.Array:
         x_key, noise_key = jax.random.split(key)
-        x = jax.random.normal(x_key, shape)
+        x = 0.5 * jax.random.normal(x_key, shape)
         noise = jax.random.normal(noise_key, (self.num_timesteps, *shape))
 
         def body_fn(x, input):

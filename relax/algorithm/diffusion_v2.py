@@ -35,7 +35,7 @@ class Diffv2(Algorithm):
         lr: float = 1e-4,
         alpha_lr: float = 3e-2,
         tau: float = 0.005,
-        delay_alpha_update: int = 10000,
+        delay_alpha_update: int = 1000,
         delay_update: int = 2,
         reward_scale: float = 0.2,
         num_samples: int = 200,

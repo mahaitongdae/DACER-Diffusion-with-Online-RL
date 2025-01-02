@@ -80,7 +80,8 @@ def create_diffv2_net(
     diffusion_hidden_sizes: Sequence[int],
     activation: Activation = jax.nn.relu,
     num_timesteps: int = 20,
-) -> Tuple[Diffv2Net, Diffv2Params]:
+    act_batch_size: int = 4,
+    ) -> Tuple[Diffv2Net, Diffv2Params]:
     # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
     q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
     policy = hk.without_apply_rng(hk.transform(lambda obs, act, t: DACERPolicyNet(diffusion_hidden_sizes, activation)(obs, act, t)))
@@ -100,5 +101,5 @@ def create_diffv2_net(
     sample_act = jnp.zeros((1, act_dim))
     params = init(key, sample_obs, sample_act)
 
-    net = Diffv2Net(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, target_entropy=-act_dim*0.9, act_batch_size=4)
+    net = Diffv2Net(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, target_entropy=-act_dim*0.9, act_batch_size=act_batch_size)
     return net, params
