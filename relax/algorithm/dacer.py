@@ -87,6 +87,7 @@ class DACER(Algorithm):
             q_target = next_q_mean
             q_target_sample = next_q_sample
             q_backup = reward + (1 - done) * self.gamma * q_target
+            q_backup_sample = reward + (1 - done) * self.gamma * q_target_sample
 
             # update q
             def q_loss_fn(q_params: hk.Params, mean_q_std: float) -> jax.Array:

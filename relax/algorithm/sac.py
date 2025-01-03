@@ -23,12 +23,14 @@ class SACTrainState(NamedTuple):
 
 
 class SAC(Algorithm):
-    def __init__(self, agent: SACNet, params: SACParams, *, gamma: float = 0.99, lr: float = 1e-4, alpha_lr: float = 3e-4, tau: float = 0.005):
+    def __init__(self, agent: SACNet, params: SACParams, *, gamma: float = 0.99, lr: float = 1e-4,
+                 alpha_lr: float = 3e-4, tau: float = 0.005, reward_scale: float = 0.2,):
         self.agent = agent
         self.gamma = gamma
         self.tau = tau
         self.optim = optax.adam(lr)
         self.log_alpha_optim = optax.adam(alpha_lr)
+        self.reward_scale = reward_scale
 
         self.state = SACTrainState(
             params=params,
@@ -48,6 +50,8 @@ class SAC(Algorithm):
             q1_params, q2_params, target_q1_params, target_q2_params, policy_params, log_alpha = state.params
             q1_opt_state, q2_opt_state, policy_opt_state, log_alpha_opt_state = state.opt_state
             next_eval_key, new_eval_key = jax.random.split(key)
+
+            reward *= self.reward_scale
 
             # compute target q
             next_action, next_logp = self.agent.evaluate(next_eval_key, policy_params, next_obs)

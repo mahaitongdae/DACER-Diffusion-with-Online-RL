@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     while payload := sys.stdin.readline():
         step, policy_path = payload.strip().split(",", maxsplit=1)
-        step = int(step) // 20
+        step = int(step)
         with open(policy_path, "rb") as f:
             policy_params = pickle.load(f)
 

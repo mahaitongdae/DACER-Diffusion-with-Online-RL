@@ -10,6 +10,7 @@ from relax.utils.jax_utils import fix_repr, is_broadcastable
 
 Activation = Callable[[jax.Array], jax.Array]
 Identity: Activation = lambda x: x
+Tanh: Activation = lambda x: jnp.tanh(x)
 
 
 @dataclass
@@ -104,6 +105,21 @@ class PolicyNet(hk.Module):
             return mean, log_std
         else:
             return mean, jnp.exp(log_std)
+
+@dataclass
+@fix_repr
+class PolicyStdNet(hk.Module):
+    act_dim: int
+    hidden_sizes: Sequence[int]
+    activation: Activation
+    output_activation: Activation = Tanh
+    min_log_std: float = -5.0
+    max_log_std: float = 2.0
+    name: str = None
+
+    def __call__(self, obs: jax.Array) -> jax.Array:
+        log_std = mlp(self.hidden_sizes, self.act_dim, self.activation, self.output_activation)(obs)
+        return self.min_log_std + (log_std + 1) / 2 * (self.max_log_std - self.min_log_std)
 
 
 @dataclass
