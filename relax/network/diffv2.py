@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, NamedTuple, Sequence, Tuple
+from typing import Callable, NamedTuple, Sequence, Tuple, Union
 
 import jax, jax.numpy as jnp
 import haiku as hk
@@ -38,7 +38,7 @@ class Diffv2Net:
         def model_fn(t, x):
             return self.policy(policy_params, obs, x, t)
 
-        def sample(key: jax.Array) -> (jax.Array, jax.Array):
+        def sample(key: jax.Array) -> Union[jax.Array, jax.Array]:
             act = self.diffusion.p_sample(key, model_fn, (*obs.shape[:-1], self.act_dim))
             q1 = self.q(q1_params, obs, act)
             q2 = self.q(q2_params, obs, act)
@@ -71,9 +71,9 @@ class Diffv2Net:
 
     def get_deterministic_action(self, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
         key = random_key_from_data(obs)
-        policy_params, log_alpha = policy_params
+        policy_params, log_alpha, q1_params, q2_params = policy_params
         log_alpha = -jnp.inf
-        policy_params = (policy_params, log_alpha)
+        policy_params = (policy_params, log_alpha, q1_params, q2_params)
         return self.get_action(key, policy_params, obs)
 
     def q_evaluate(
