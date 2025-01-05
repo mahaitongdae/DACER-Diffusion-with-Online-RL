@@ -12,6 +12,13 @@ import numpy as np
 from relax.env.vector.base import VectorEnv
 from relax.spinlock import spinlock_server_wait, spinlock_server_wait_mask, spinlock_server_notify, spinlock_server_notify_mask
 
+import os 
+import sys
+env_bandit_path = os.path.abspath("relax/env")
+if env_bandit_path not in sys.path:
+    sys.path.append(env_bandit_path)
+import bandit
+
 WORKER_PATH = Path(__file__).parent / "worker2.py"
 
 class ProcessVectorEnv(VectorEnv):

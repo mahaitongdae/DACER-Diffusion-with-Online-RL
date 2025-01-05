@@ -11,6 +11,13 @@ import setproctitle
 from relax.prctl import set_client_pdeathsig
 from relax.spinlock import spinlock_client_wait, spinlock_client_notify
 
+import os 
+import sys
+env_bandit_path = os.path.abspath("relax/env")
+if env_bandit_path not in sys.path:
+    sys.path.append(env_bandit_path)
+import bandit
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--env", type=str, required=True)

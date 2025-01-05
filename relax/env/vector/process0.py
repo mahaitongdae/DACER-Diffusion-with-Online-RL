@@ -6,6 +6,13 @@ import numpy as np
 
 from relax.env.vector.base import VectorEnv
 
+import os 
+import sys
+env_bandit_path = os.path.abspath("relax/env")
+if env_bandit_path not in sys.path:
+    sys.path.append(env_bandit_path)
+import bandit
+
 
 class ProcessVectorEnv(VectorEnv):
     def __init__(self, name: str, num_envs: int, seed: int):

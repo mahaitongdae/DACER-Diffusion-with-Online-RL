@@ -12,6 +12,13 @@ import numpy as np
 from relax.env.vector.base import VectorEnv
 from relax.futex import futex_server_wait, futex_server_notify
 
+import os 
+import sys
+env_bandit_path = os.path.abspath("relax/env")
+if env_bandit_path not in sys.path:
+    sys.path.append(env_bandit_path)
+import bandit
+
 WORKER_PATH = Path(__file__).parent / "worker3.py"
 
 class ProcessVectorEnv(VectorEnv):

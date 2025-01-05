@@ -14,6 +14,12 @@ from tensorboardX import SummaryWriter
 from relax.env import create_env
 from relax.utils.persistence import PersistFunction
 
+env_bandit_path = os.path.abspath("relax/env")
+if env_bandit_path not in sys.path:
+    sys.path.append(env_bandit_path)
+import bandit
+
+
 def evaluate(env, policy_fn, policy_params, num_episodes):
     ep_len_list = []
     ep_ret_list = []

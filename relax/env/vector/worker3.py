@@ -11,6 +11,13 @@ import setproctitle
 from relax.prctl import set_client_pdeathsig
 from relax.futex import futex_client_wait, futex_client_notify
 
+import os 
+import sys
+env_bandit_path = os.path.abspath("relax/env")
+if env_bandit_path not in sys.path:
+    sys.path.append(env_bandit_path)
+import bandit
+
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"^gymnasium\.")
 
