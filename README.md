@@ -37,7 +37,7 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda-12.6/compat" # Add to ~
 ## Run
 ```bash
 # Run one experiment
-XLA_FLAGS='--xla_gpu_deterministic_ops=true' CUDA_VISIBLE_DEVICES=0 `XLA_PYTHON_CLIENT_MEM_FRACTION=.1` python scripts/train_mujoco.py --alg dacer --seed 100
+XLA_FLAGS='--xla_gpu_deterministic_ops=true' CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_MEM_FRACTION=.1 python scripts/train_mujoco.py --alg dacer --seed 100
 ```
 
 ```bash
