@@ -32,7 +32,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--alg", type=str, default="diffv2")
     parser.add_argument("--env", type=str, default="HalfCheetah-v4")
-    parser.add_argument("--suffix", type=str, default="diff_v2_peed_alpha_update_init_dist_sample_more_updates")
+    parser.add_argument("--suffix", type=str, default="test_use_atp1")
     parser.add_argument("--num_vec_envs", type=int, default=5)
     parser.add_argument("--hidden_num", type=int, default=3)
     parser.add_argument("--hidden_dim", type=int, default=256)
@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_step", type=int, default=int(3e4)) # other envs 3e4
     parser.add_argument("--total_step", type=int, default=int(1e6))
     parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--alpha_lr", type=float, default=1e-3)
     parser.add_argument("--seed", type=int, default=100)
     parser.add_argument("--act_batch_size", type=int, default=4)
     parser.add_argument("--debug", action='store_true', default=False)
@@ -76,8 +77,8 @@ if __name__ == "__main__":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
-                                         num_timesteps=args.diffusion_steps, act_batch_size=args.act_batch_size)
-        algorithm = Diffv2(agent, params, lr=args.lr)
+                                          num_timesteps=args.diffusion_steps, num_particles=args.act_batch_size)
+        algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr)
     elif args.alg == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=64)
         algorithm = QSM(agent, params, lr=args.lr)
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         total_step=args.total_step,
         sample_per_iteration=1,
         evaluate_env=eval_env,
-        save_policy_every=300000,
+        save_policy_every=50000,
         warmup_with="random",
         log_path=exp_dir,
     )
