@@ -48,6 +48,13 @@ class Diffv2(Algorithm):
         self.reward_scale = reward_scale
         self.num_samples = num_samples
         self.optim = optax.adam(lr)
+        lr_schedule = optax.schedules.linear_schedule(
+            init_value=lr,
+            end_value=5e-5,
+            transition_steps=int(5e4),
+            transition_begin=int(2.5e4),
+        )
+        self.policy_optim = optax.adam(learning_rate=lr_schedule)
         self.alpha_optim = optax.adam(alpha_lr)
         self.entropy = 0.0
 
@@ -56,7 +63,8 @@ class Diffv2(Algorithm):
             opt_state=Diffv2OptStates(
                 q1=self.optim.init(params.q1),
                 q2=self.optim.init(params.q2),
-                policy=self.optim.init(params.policy),
+                # policy=self.optim.init(params.policy),
+                policy=self.policy_optim.init(params.policy),
                 log_alpha=self.alpha_optim.init(params.log_alpha),
             ),
             step=jnp.int32(0),
@@ -243,7 +251,7 @@ class Diffv2(Algorithm):
 
             q1_params, q1_opt_state = param_update(self.optim, q1_params, q1_grads, q1_opt_state)
             q2_params, q2_opt_state = param_update(self.optim, q2_params, q2_grads, q2_opt_state)
-            policy_params, policy_opt_state = delay_param_update(self.optim, policy_params, policy_grads, policy_opt_state)
+            policy_params, policy_opt_state = delay_param_update(self.policy_optim, policy_params, policy_grads, policy_opt_state)
             log_alpha, log_alpha_opt_state = delay_alpha_param_update(self.alpha_optim, log_alpha, log_alpha_opt_state)
 
             target_q1_params = delay_target_update(q1_params, target_q1_params, self.tau)
