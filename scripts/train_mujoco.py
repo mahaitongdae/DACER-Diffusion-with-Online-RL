@@ -41,9 +41,9 @@ if __name__ == "__main__":
     parser.add_argument("--start_step", type=int, default=int(3e4)) # other envs 3e4
     parser.add_argument("--total_step", type=int, default=int(1e6))
     parser.add_argument("--lr", type=float, default=3e-4)
-    parser.add_argument("--alpha_lr", type=float, default=1e-3)
+    parser.add_argument("--alpha_lr", type=float, default=7e-3)
     parser.add_argument("--seed", type=int, default=100)
-    parser.add_argument("--num_particles", type=int, default=4)
+    parser.add_argument("--num_particles", type=int, default=64)
     parser.add_argument("--debug", action='store_true', default=False)
     args = parser.parse_args()
 

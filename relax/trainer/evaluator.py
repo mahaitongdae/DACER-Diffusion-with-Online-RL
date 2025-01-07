@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 import argparse
 import pickle
+import csv
 
 import numpy as np
 import jax
@@ -32,6 +33,19 @@ def evaluate(env, policy_fn, policy_params, num_episodes):
         ep_ret_list.append(ep_ret)
     return ep_len_list, ep_ret_list
 
+class Logger(object):
+
+	def __init__(self, log_dir):
+		self.path = os.path.join(log_dir, 'log.csv')
+		with open(self.path, mode='w', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow(['step', 'avg_ret', 'std_ret'])
+
+	def log(self, step, avg_ret, std_ret):
+		with open(self.path, mode='a', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow([step, avg_ret, std_ret])
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("policy_root", type=Path)
@@ -49,7 +63,8 @@ if __name__ == "__main__":
     def policy_fn(policy_params, obs):
         return policy(policy_params, obs).clip(-1, 1)
 
-    logger = SummaryWriter(args.policy_root)
+    # logger = SummaryWriter(args.policy_root)
+    logger = Logger(args.policy_root)
 
     while payload := sys.stdin.readline():
         step, policy_path = payload.strip().split(",", maxsplit=1)
@@ -59,10 +74,11 @@ if __name__ == "__main__":
 
         ep_len_list, ep_ret_list = evaluate(env, policy_fn, policy_params, args.num_episodes)
 
-        ep_len_mean = np.array(ep_len_list)
-        ep_ret_mean = np.array(ep_ret_list)
-        logger.add_scalar("evaluate/episode_length", ep_len_mean.mean(), step)
-        logger.add_scalar("evaluate/episode_return", ep_ret_mean.mean(), step)
-        # logger.add_histogram("evaluate/episode_length", ep_len_mean, step)
-        # logger.add_histogram("evaluate/episode_return", ep_ret_mean, step)
-        logger.flush()
+        ep_len = np.array(ep_len_list)
+        ep_ret = np.array(ep_ret_list)
+        # logger.add_scalar("evaluate/episode_length", ep_len_mean.mean(), step)
+        # logger.add_scalar("evaluate/episode_return", ep_ret_mean.mean(), step)
+        # # logger.add_histogram("evaluate/episode_length", ep_len_mean, step)
+        # # logger.add_histogram("evaluate/episode_return", ep_ret_mean, step)
+        # logger.flush()
+        logger.log(step, ep_ret.mean(), ep_ret.std())

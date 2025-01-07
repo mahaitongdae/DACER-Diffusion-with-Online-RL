@@ -188,6 +188,7 @@ class OffPolicyTrainer:
     def add_scalar(self, tag: str, value: float, step: int):
         self.last_metrics[tag] = value
         self.logger.add_scalar(tag, value, step)
+        self.logger.flush()
 
     def run(self, key: jax.Array):
         try:
