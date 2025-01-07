@@ -44,6 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("--alpha_lr", type=float, default=7e-3)
     parser.add_argument("--seed", type=int, default=100)
     parser.add_argument("--num_particles", type=int, default=64)
+    parser.add_argument("--noise_scale", type=float, default=0.05)
     parser.add_argument("--debug", action='store_true', default=False)
     args = parser.parse_args()
 
@@ -77,7 +78,9 @@ if __name__ == "__main__":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
-                                          num_timesteps=args.diffusion_steps, num_particles=args.num_particles)
+                                          num_timesteps=args.diffusion_steps, 
+                                          num_particles=args.num_particles, 
+                                          noise_scale=args.noise_scale)
         algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr)
     elif args.alg == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=64)
