@@ -31,7 +31,7 @@ class OffPolicyTrainer:
         update_per_iteration: int = 1,
         evaluate_env: Optional[Env] = None,
         evaluate_every: int = 10000,
-        evaluate_n_episode: int = 10,
+        evaluate_n_episode: int = 20,
         sample_log_n_episode: int = 10,
         update_log_n_step: int = 1000,
         done_info_keys: Tuple[str, ...] = (),
@@ -74,6 +74,7 @@ class OffPolicyTrainer:
         # The following two depends on sample_step, which may not update by one only
         self.sample_log_interval = Interval(self.sample_log_n_episode)
         self.save_policy_interval = Interval(self.save_policy_every)
+        # self.eval_interval = Interval()
 
     def setup(self, dummy_data: Experience):
         self.algorithm.warmup(dummy_data)

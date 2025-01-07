@@ -44,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("--alpha_lr", type=float, default=7e-3)
     parser.add_argument("--seed", type=int, default=100)
     parser.add_argument("--num_particles", type=int, default=64)
-    parser.add_argument("--noise_scale", type=float, default=0.05)
+    parser.add_argument("--noise_scale", type=float, default=0.1)
     parser.add_argument("--debug", action='store_true', default=False)
     args = parser.parse_args()
 

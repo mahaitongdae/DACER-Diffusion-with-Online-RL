@@ -11,6 +11,10 @@ def log_git_details(log_file = "dacer.diff"):
         status_result = subprocess.run(["git", "status"], capture_output=True, text=True, check=True)
         git_status = status_result.stdout
 
+        # Get the git commit hash
+        status_result = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True)
+        git_commit_hash = status_result.stdout
+
         # Get the detailed diff of changes
         diff_result = subprocess.run(["git", "diff"], capture_output=True, text=True, check=True)
         git_diff = diff_result.stdout
@@ -20,6 +24,8 @@ def log_git_details(log_file = "dacer.diff"):
             file.write(f"Timestamp: {timestamp}\n")
             file.write("=== Git Status ===\n")
             file.write(git_status)
+            file.write("=== Git Commit Hash ===\n")
+            file.write(git_commit_hash)
             file.write("\n=== Git Diff ===\n")
             file.write(git_diff)
             file.write("\n" + "-" * 80 + "\n")
