@@ -111,7 +111,7 @@ def create_diffv2_net(
         target_q2_params = q2_params
         policy_params = policy.init(policy_key, obs, act, 0)
         target_policy_params = policy_params
-        log_alpha = jnp.array(math.log(3), dtype=jnp.float32) # math.log(3) or math.log(5) choose one
+        log_alpha = jnp.array(math.log(5), dtype=jnp.float32) # math.log(3) or math.log(5) choose one
         return Diffv2Params(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, target_policy_params, log_alpha)
 
     sample_obs = jnp.zeros((1, obs_dim))

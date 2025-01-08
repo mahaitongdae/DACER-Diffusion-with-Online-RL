@@ -37,7 +37,7 @@ class Diffv2(Algorithm):
         lr: float = 1e-4,
         alpha_lr: float = 3e-2,
         tau: float = 0.005,
-        delay_alpha_update: int = 1000,
+        delay_alpha_update: int = 500,
         delay_update: int = 2,
         reward_scale: float = 0.2,
         num_samples: int = 200,
@@ -135,21 +135,21 @@ class Diffv2(Algorithm):
             q1_params = optax.apply_updates(q1_params, q1_update)
             q2_params = optax.apply_updates(q2_params, q2_update)
 
-            def cal_entropy():
-                keys = jax.random.split(log_alpha_key, self.num_samples)
-                actions = jax.vmap(self.agent.get_action, in_axes=(0, None, None),
-                                   out_axes=1)(keys, (policy_params, jax.lax.stop_gradient(log_alpha), q1_params, q2_params), obs)
-                entropy = jax.pure_callback(estimate_entropy, jax.ShapeDtypeStruct((), jnp.float32), actions)
-                entropy = jax.lax.stop_gradient(entropy)
-                return entropy
+            # def cal_entropy():
+            #     keys = jax.random.split(log_alpha_key, self.num_samples)
+            #     actions = jax.vmap(self.agent.get_action, in_axes=(0, None, None),
+            #                        out_axes=1)(keys, (policy_params, jax.lax.stop_gradient(log_alpha), q1_params, q2_params), obs)
+            #     entropy = jax.pure_callback(estimate_entropy, jax.ShapeDtypeStruct((), jnp.float32), actions)
+            #     entropy = jax.lax.stop_gradient(entropy)
+            #     return entropy
 
             prev_entropy = state.entropy if hasattr(state, 'entropy') else jnp.float32(0.0)
 
-            entropy = jax.lax.cond(
-                step % self.delay_alpha_update == 0,
-                cal_entropy,
-                lambda: prev_entropy
-            )
+            # entropy = jax.lax.cond(
+            #     step % 5000 == 0,
+            #     cal_entropy,
+            #     lambda: prev_entropy
+            # )
 
             # update policy
             # def policy_loss_fn(policy_params) -> jax.Array:
@@ -175,15 +175,16 @@ class Diffv2(Algorithm):
                 # q_mean = jnp.minimum(q1_mean, q2_mean)
                 q_mean = get_min_q(next_obs, next_action)
                 norm_q = (q_mean - q_mean.mean()) / q_mean.std()
-                q_weights = jnp.exp(norm_q.clip(-3., 3.))
-                q_weights = q_weights / jnp.exp(log_alpha)
+                scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
+                q_weights = jnp.exp(scaled_q)
+                # q_weights = q_weights 
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, next_obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
                 loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                                                             jax.lax.stop_gradient(next_action))
 
-                return loss, (q_weights, next_action)
+                return loss, (q_weights, next_action, scaled_q)
 
             # def policy_loss_fn(policy_params) -> jax.Array:
             #     noise = jax.random.uniform(new_eval_key, next_action.shape)
@@ -206,11 +207,13 @@ class Diffv2(Algorithm):
             #
             #     return loss, (q_weights, uniform_action_near_current)
 
-            (total_loss, (q_weights, sampled_actions)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
+            (total_loss, (q_weights, sampled_actions, scaled_q)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
 
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
-                log_alpha_loss = -jnp.mean(log_alpha * (-entropy + self.agent.target_entropy))
+                approx_entropy = 0.5 * self.agent.act_dim * jnp.log( 2 * jnp.pi * jnp.exp(1) * (0.1 * jnp.exp(log_alpha)) ** 2)
+                # log_alpha_loss = -jnp.mean(log_alpha * (-entropy + self.agent.target_entropy))
+                log_alpha_loss = -1 * log_alpha * (-1 * jax.lax.stop_gradient(approx_entropy) + self.agent.target_entropy)
                 return log_alpha_loss
 
             # update networks
@@ -256,7 +259,7 @@ class Diffv2(Algorithm):
                 params=Diffv2Params(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, target_policy_params, log_alpha),
                 opt_state=Diffv2OptStates(q1=q1_opt_state, q2=q2_opt_state, policy=policy_opt_state, log_alpha=log_alpha_opt_state),
                 step=step + 1,
-                entropy=entropy,
+                entropy=jnp.float32(0.0),
             )
             info = {
                 "q1_loss": q1_loss,
@@ -270,11 +273,15 @@ class Diffv2(Algorithm):
                 "policy_loss": total_loss,
                 "alpha": jnp.exp(log_alpha),
                 "q_weights_std": jnp.std(q_weights),
+                "q_weights_mean": jnp.mean(q_weights),
+                "q_weights_min": jnp.min(q_weights),
                 "q_weights_max": jnp.max(q_weights),
+                "scale_q_mean": jnp.mean(scaled_q),
+                "scale_q_std": jnp.std(scaled_q),
                 # "mean_q1_std": mean_q1_std,
                 # "mean_q2_std": mean_q2_std,
-
-                "entropy": entropy,
+                # "entropy": entropy,
+                "entropy_approx": 0.5 * self.agent.act_dim * jnp.log( 2 * jnp.pi * jnp.exp(1) * (0.1 * jnp.exp(log_alpha)) ** 2),
             }
             return state, info
 
@@ -309,7 +316,7 @@ def estimate_entropy(actions, num_components=3):  # (batch, sample, dim)
             d = cov_matrix.shape[0]
             entropy = 0.5 * d * (1 + np.log(2 * np.pi)) + 0.5 * np.linalg.slogdet(cov_matrix)[1]
             entropies.append(entropy)
-        entropy = -np.sum(weights * np.log(weights)) + np.sum(weights * np.array(entropies))
+        entropy =  -np.sum(weights * np.log(weights)) + np.sum(weights * np.array(entropies)) 
         total_entropy.append(entropy)
     final_entropy = sum(total_entropy) / len(total_entropy)
     return final_entropy
