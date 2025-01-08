@@ -1,8 +1,10 @@
 from typing import NamedTuple, Tuple
 
 import jax, jax.numpy as jnp
+import numpy as np
 import optax
 import haiku as hk
+import pickle
 
 from relax.algorithm.base import Algorithm
 from relax.network.dacer import DACERNet, DACERParams
@@ -280,6 +282,18 @@ class Diffv2(Algorithm):
 
     def get_policy_params(self):
         return (self.state.params.policy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2 )
+    
+    def get_policy_params_to_save(self):
+        return (self.state.params.target_poicy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2)
+    
+    def save_policy(self, path: str) -> None:
+        policy = jax.device_get(self.get_policy_params_to_save())
+        with open(path, "wb") as f:
+            pickle.dump(policy, f)
+
+    def get_action(self, key: jax.Array, obs: np.ndarray) -> np.ndarray:
+        action = self._get_action(key, self.get_policy_params_to_save(), obs)
+        return np.asarray(action)
 
 def estimate_entropy(actions, num_components=3):  # (batch, sample, dim)
     import numpy as np
