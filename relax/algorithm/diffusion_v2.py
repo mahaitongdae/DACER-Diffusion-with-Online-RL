@@ -50,6 +50,13 @@ class Diffv2(Algorithm):
         self.reward_scale = reward_scale
         self.num_samples = num_samples
         self.optim = optax.adam(lr)
+        lr_schedule = optax.schedules.linear_schedule(
+            init_value=lr,
+            end_value=5e-5,
+            transition_steps=int(5e4),
+            transition_begin=int(2.5e4),
+        )
+        self.policy_optim = optax.adam(learning_rate=lr_schedule)
         self.alpha_optim = optax.adam(alpha_lr)
         self.entropy = 0.0
 
@@ -58,7 +65,8 @@ class Diffv2(Algorithm):
             opt_state=Diffv2OptStates(
                 q1=self.optim.init(params.q1),
                 q2=self.optim.init(params.q2),
-                policy=self.optim.init(params.policy),
+                # policy=self.optim.init(params.policy),
+                policy=self.policy_optim.init(params.policy),
                 log_alpha=self.alpha_optim.init(params.log_alpha),
             ),
             step=jnp.int32(0),
@@ -177,7 +185,7 @@ class Diffv2(Algorithm):
                 norm_q = (q_mean - q_mean.mean()) / q_mean.std()
                 scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
-                # q_weights = q_weights 
+                # q_weights = q_weights
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, next_obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
@@ -248,7 +256,7 @@ class Diffv2(Algorithm):
 
             q1_params, q1_opt_state = param_update(self.optim, q1_params, q1_grads, q1_opt_state)
             q2_params, q2_opt_state = param_update(self.optim, q2_params, q2_grads, q2_opt_state)
-            policy_params, policy_opt_state = delay_param_update(self.optim, policy_params, policy_grads, policy_opt_state)
+            policy_params, policy_opt_state = delay_param_update(self.policy_optim, policy_params, policy_grads, policy_opt_state)
             log_alpha, log_alpha_opt_state = delay_alpha_param_update(self.alpha_optim, log_alpha, log_alpha_opt_state)
 
             target_q1_params = delay_target_update(q1_params, target_q1_params, self.tau)
@@ -289,10 +297,10 @@ class Diffv2(Algorithm):
 
     def get_policy_params(self):
         return (self.state.params.policy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2 )
-    
+
     def get_policy_params_to_save(self):
         return (self.state.params.target_poicy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2)
-    
+
     def save_policy(self, path: str) -> None:
         policy = jax.device_get(self.get_policy_params_to_save())
         with open(path, "wb") as f:
@@ -316,7 +324,7 @@ def estimate_entropy(actions, num_components=3):  # (batch, sample, dim)
             d = cov_matrix.shape[0]
             entropy = 0.5 * d * (1 + np.log(2 * np.pi)) + 0.5 * np.linalg.slogdet(cov_matrix)[1]
             entropies.append(entropy)
-        entropy =  -np.sum(weights * np.log(weights)) + np.sum(weights * np.array(entropies)) 
+        entropy =  -np.sum(weights * np.log(weights)) + np.sum(weights * np.array(entropies))
         total_entropy.append(entropy)
     final_entropy = sum(total_entropy) / len(total_entropy)
     return final_entropy
