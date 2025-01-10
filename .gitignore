@@ -17,3 +17,6 @@ __pycache__/
 /output/
 
 */.ipynb_checkpoints
+*.png
+*.ipynb
+*.sh
