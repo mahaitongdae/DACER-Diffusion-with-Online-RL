@@ -25,6 +25,21 @@ class RolloutBuffer:
         self.rewards = []
         self.state_values = []
         self.is_terminals = []
+
+    def sort_single_list(self, data_list, step):
+        sorted_list = []
+        for start in range(step):
+            slice_part = data_list[start::step]
+            sorted_list.extend(slice_part)
+        return sorted_list
+
+    def sort_buffer(self, step):
+        self.actions = self.sort_single_list(self.actions, step=step)
+        self.states = self.sort_single_list(self.states, step=step)
+        self.logprobs = self.sort_single_list(self.logprobs, step=step)
+        self.rewards = self.sort_single_list(self.rewards, step=step)
+        self.state_values = self.sort_single_list(self.state_values, step=step)
+        self.is_terminals = self.sort_single_list(self.is_terminals, step=step)
     
     def clear(self):
         del self.actions[:]
@@ -179,12 +194,13 @@ class PPO:
                 state = torch.FloatTensor(state).to(device)
                 action, action_logprob, state_val = self.policy_old.act(state)
 
-            self.buffer.states.append(state)
-            self.buffer.actions.append(action)
-            self.buffer.logprobs.append(action_logprob)
-            self.buffer.state_values.append(state_val)
+            for i_t in range(state.shape[0]):
+                self.buffer.states.append(state[i_t])
+                self.buffer.actions.append(action[i_t])
+                self.buffer.logprobs.append(action_logprob[i_t])
+                self.buffer.state_values.append(state_val[i_t])
 
-            return action.detach().cpu().numpy().flatten()
+            return action.detach().cpu().numpy()
         else:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(device)

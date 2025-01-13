@@ -1,6 +1,7 @@
 import os
 import glob
 import time
+import argparse
 from datetime import datetime
 
 import torch
@@ -10,18 +11,28 @@ import gym
 # import roboschool
 
 from relax.algorithm.PPO import PPO
+from relax.env import create_env, create_vector_env
+from relax.utils.random_utils import seeding
 
-################################### Training ###################################
-def train():
-    print("============================================================================================")
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--env", type=str, default="HalfCheetah-v3")
+    parser.add_argument("--num_vec_envs", type=int, default=5)
+    parser.add_argument("--total_step", type=int, default=int(1e6))
+    parser.add_argument("--seed", type=int, default=100)
+
+    args = parser.parse_args()
+
+    env_name = args.env
+    print("training environment name : " + env_name)
+    env_temp = gym.make(env_name)
 
     ####### initialize environment hyperparameters ######
-    env_name = "Walker2d-v2"
-
     has_continuous_action_space = True  # continuous action space; else discrete
 
-    max_ep_len = 1000                   # max timesteps in one episode
-    max_training_timesteps = int(3e6)   # break training loop if timeteps > max_training_timesteps
+    max_ep_len = env_temp._max_episode_steps                # max timesteps in one episode
+    max_training_timesteps = args.total_step   # break training loop if timeteps > max_training_timesteps
 
     print_freq = max_ep_len * 10        # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2           # log avg reward in the interval (in num timesteps)
@@ -36,7 +47,7 @@ def train():
     ## Note : print/log frequencies should be > than max_ep_len
 
     ################ PPO hyperparameters ################
-    update_timestep = max_ep_len * 4      # update policy every n timesteps
+    update_timestep = int(max_ep_len * 4 // args.num_vec_envs)    # update policy every n timesteps
     K_epochs = 80               # update policy for K epochs in one PPO update
 
     eps_clip = 0.2          # clip parameter for PPO
@@ -48,18 +59,15 @@ def train():
     random_seed = 0         # set random seed if required (0 = no random seed)
     #####################################################
 
-    print("training environment name : " + env_name)
-
-    env = gym.make(env_name)
-
-    # state space dimension
-    state_dim = env.observation_space.shape[0]
-
-    # action space dimension
-    if has_continuous_action_space:
-        action_dim = env.action_space.shape[0]
+    master_seed = args.seed
+    master_rng, _ = seeding(master_seed)
+    env_seed, env_action_seed, eval_env_seed, buffer_seed, init_network_seed, train_seed = map(
+        int, master_rng.integers(0, 2**32 - 1, 6)
+    )
+    if args.num_vec_envs > 0:
+        env, obs_dim, act_dim = create_vector_env(args.env, args.num_vec_envs, env_seed, env_action_seed, mode="futex")
     else:
-        action_dim = env.action_space.n
+        env, obs_dim, act_dim = create_env(args.env, env_seed, env_action_seed)
 
     ###################### logging ######################
 
@@ -109,8 +117,8 @@ def train():
     print("log frequency : " + str(log_freq) + " timesteps")
     print("printing average reward over episodes in last : " + str(print_freq) + " timesteps")
     print("--------------------------------------------------------------------------------------------")
-    print("state space dimension : ", state_dim)
-    print("action space dimension : ", action_dim)
+    print("state space dimension : ", obs_dim)
+    print("action space dimension : ", act_dim)
     print("--------------------------------------------------------------------------------------------")
     if has_continuous_action_space:
         print("Initializing a continuous action space policy")
@@ -142,7 +150,7 @@ def train():
     ################# training procedure ################
 
     # initialize a PPO agent
-    ppo_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std)
+    ppo_agent = PPO(obs_dim, act_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std)
 
     # track total training time
     start_time = datetime.now().replace(microsecond=0)
@@ -167,24 +175,28 @@ def train():
     # training loop
     while time_step <= max_training_timesteps:
 
-        state = env.reset()
+        state, _ = env.reset()
         current_ep_reward = 0
 
         for t in range(1, max_ep_len+1):
 
             # select action with policy
             action = ppo_agent.select_action(state)
-            state, reward, done, _ = env.step(action)
+            state, reward, done, _, _ = env.step(action)
 
+            done = done.astype(np.float32)
+            done = (np.count_nonzero(done) > 0) if t < max_ep_len else 0
             # saving reward and is_terminals
-            ppo_agent.buffer.rewards.append(reward)
-            ppo_agent.buffer.is_terminals.append(done)
+            for i_t in range(args.num_vec_envs):
+                ppo_agent.buffer.rewards.append(reward[i_t])
+                ppo_agent.buffer.is_terminals.append(done)
 
             time_step +=1
-            current_ep_reward += reward
+            current_ep_reward += np.mean(reward)
 
             # update PPO agent
             if time_step % update_timestep == 0:
+                ppo_agent.buffer.sort_buffer(args.num_vec_envs)
                 ppo_agent.update()
 
             # if continuous action space; then decay action std of ouput action distribution
@@ -247,11 +259,6 @@ def train():
     print("Finished training at (GMT) : ", end_time)
     print("Total training time  : ", end_time - start_time)
     print("============================================================================================")
-
-
-if __name__ == '__main__':
-
-    train()
     
     
     
