@@ -38,8 +38,9 @@ class Diffv2(Algorithm):
         gamma: float = 0.99,
         lr: float = 1e-4,
         alpha_lr: float = 3e-2,
+        lr_schedule_end: float = 5e-5,
         tau: float = 0.005,
-        delay_alpha_update: int = 500,
+        delay_alpha_update: int = 250,
         delay_update: int = 2,
         reward_scale: float = 0.2,
         num_samples: int = 200,
@@ -54,7 +55,7 @@ class Diffv2(Algorithm):
         self.optim = optax.adam(lr)
         lr_schedule = optax.schedules.linear_schedule(
             init_value=lr,
-            end_value=5e-5,
+            end_value=lr_schedule_end,
             transition_steps=int(5e4),
             transition_begin=int(2.5e4),
         )
@@ -95,6 +96,12 @@ class Diffv2(Algorithm):
             def get_min_q(s, a):
                 q1 = self.agent.q(q1_params, s, a)
                 q2 = self.agent.q(q2_params, s, a)
+                q = jnp.minimum(q1, q2)
+                return q
+
+            def get_min_taret_q(s, a):
+                q1 = self.agent.q(target_q1_params, s, a)
+                q2 = self.agent.q(target_q2_params, s, a)
                 q = jnp.minimum(q1, q2)
                 return q
 
