@@ -36,8 +36,9 @@ class Diffv2(Algorithm):
         gamma: float = 0.99,
         lr: float = 1e-4,
         alpha_lr: float = 3e-2,
+        lr_schedule_end: float = 5e-5,
         tau: float = 0.005,
-        delay_alpha_update: int = 500,
+        delay_alpha_update: int = 250,
         delay_update: int = 2,
         reward_scale: float = 0.2,
         num_samples: int = 200,
@@ -52,7 +53,7 @@ class Diffv2(Algorithm):
         self.optim = optax.adam(lr)
         lr_schedule = optax.schedules.linear_schedule(
             init_value=lr,
-            end_value=5e-5,
+            end_value=lr_schedule_end,
             transition_steps=int(5e4),
             transition_begin=int(2.5e4),
         )
@@ -89,6 +90,12 @@ class Diffv2(Algorithm):
             def get_min_q(s, a):
                 q1 = self.agent.q(q1_params, s, a)
                 q2 = self.agent.q(q2_params, s, a)
+                q = jnp.minimum(q1, q2)
+                return q
+
+            def get_min_taret_q(s, a):
+                q1 = self.agent.q(target_q1_params, s, a)
+                q2 = self.agent.q(target_q2_params, s, a)
                 q = jnp.minimum(q1, q2)
                 return q
 
@@ -181,7 +188,7 @@ class Diffv2(Algorithm):
                 # q1_mean, _ = self.agent.q(q1_params, obs, new_action)
                 # q2_mean, _ = self.agent.q(q2_params, obs, new_action)
                 # q_mean = jnp.minimum(q1_mean, q2_mean)
-                q_mean = get_min_q(next_obs, next_action)
+                q_mean = get_min_taret_q(next_obs, next_action)
                 norm_q = (q_mean - q_mean.mean()) / q_mean.std()
                 scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
