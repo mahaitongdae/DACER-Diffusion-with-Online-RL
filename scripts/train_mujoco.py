@@ -3,6 +3,7 @@ import os.path
 from pathlib import Path
 import time
 from functools import partial
+import yaml
 
 import jax, jax.numpy as jnp
 
@@ -134,4 +135,9 @@ if __name__ == "__main__":
 
     trainer.setup(Experience.create_example(obs_dim, act_dim, trainer.batch_size))
     log_git_details(log_file=os.path.join(exp_dir, 'dacer.diff'))
+    
+    # Save the arguments to a YAML file
+    args_dict = vars(args)
+    with open(os.path.join(exp_dir, 'config.yaml'), 'w') as yaml_file:
+        yaml.dump(args_dict, yaml_file)
     trainer.run(train_key)

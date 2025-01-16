@@ -278,8 +278,8 @@ class Diffv2(Algorithm):
             target_q2_params = delay_target_update(q2_params, target_q2_params, self.tau)
             target_policy_params = delay_target_update(policy_params, target_policy_params, self.tau)
 
-            new_running_mean = running_mean + 0.006 * (q_mean - running_mean)
-            new_running_std = running_std + 0.006 * (q_std - running_std)
+            new_running_mean = running_mean + 0.001 * (q_mean - running_mean)
+            new_running_std = running_std + 0.001 * (q_std - running_std)
 
             state = Diffv2TrainState(
                 params=Diffv2Params(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, target_policy_params, log_alpha),
