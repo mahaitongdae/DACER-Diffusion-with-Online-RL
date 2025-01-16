@@ -25,6 +25,8 @@ class Diffv2TrainState(NamedTuple):
     opt_state: Diffv2OptStates
     step: int
     entropy: float
+    running_mean: float
+    running_std: float
 
 class Diffv2(Algorithm):
 
@@ -72,6 +74,8 @@ class Diffv2(Algorithm):
             ),
             step=jnp.int32(0),
             entropy=jnp.float32(0.0),
+            running_mean=jnp.float32(0.0),
+            running_std=jnp.float32(1.0)
         )
 
         @jax.jit
@@ -82,6 +86,8 @@ class Diffv2(Algorithm):
             q1_params, q2_params, target_q1_params, target_q2_params, policy_params, target_policy_params, log_alpha = state.params
             q1_opt_state, q2_opt_state, policy_opt_state, log_alpha_opt_state = state.opt_state
             step = state.step
+            running_mean = state.running_mean
+            running_std = state.running_std
             next_eval_key, new_eval_key, new_q1_eval_key, new_q2_eval_key, log_alpha_key, diffusion_time_key, diffusion_noise_key = jax.random.split(
                 key, 7)
 
@@ -188,8 +194,10 @@ class Diffv2(Algorithm):
                 # q1_mean, _ = self.agent.q(q1_params, obs, new_action)
                 # q2_mean, _ = self.agent.q(q2_params, obs, new_action)
                 # q_mean = jnp.minimum(q1_mean, q2_mean)
-                q_mean = get_min_taret_q(next_obs, next_action)
-                norm_q = (q_mean - q_mean.mean()) / q_mean.std()
+                q_min = get_min_q(next_obs, next_action)
+                # norm_q = (q_mean - q_mean.mean()) / q_mean.std()
+                q_mean, q_std = q_min.mean(), q_min.std()
+                norm_q = q_min - running_mean / running_std
                 scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
                 # q_weights = q_weights
@@ -199,7 +207,7 @@ class Diffv2(Algorithm):
                 loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                                                             jax.lax.stop_gradient(next_action))
 
-                return loss, (q_weights, next_action, scaled_q)
+                return loss, (q_weights, scaled_q, q_mean, q_std)
 
             # def policy_loss_fn(policy_params) -> jax.Array:
             #     noise = jax.random.uniform(new_eval_key, next_action.shape)
@@ -222,7 +230,7 @@ class Diffv2(Algorithm):
             #
             #     return loss, (q_weights, uniform_action_near_current)
 
-            (total_loss, (q_weights, sampled_actions, scaled_q)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
+            (total_loss, (q_weights, scaled_q, q_mean, q_std)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
 
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
@@ -270,11 +278,16 @@ class Diffv2(Algorithm):
             target_q2_params = delay_target_update(q2_params, target_q2_params, self.tau)
             target_policy_params = delay_target_update(policy_params, target_policy_params, self.tau)
 
+            new_running_mean = running_mean + 0.006 * (q_mean - running_mean)
+            new_running_std = running_std + 0.006 * (q_std - running_std)
+
             state = Diffv2TrainState(
                 params=Diffv2Params(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, target_policy_params, log_alpha),
                 opt_state=Diffv2OptStates(q1=q1_opt_state, q2=q2_opt_state, policy=policy_opt_state, log_alpha=log_alpha_opt_state),
                 step=step + 1,
                 entropy=jnp.float32(0.0),
+                running_mean=new_running_mean,
+                running_std=new_running_std
             )
             info = {
                 "q1_loss": q1_loss,
@@ -293,6 +306,8 @@ class Diffv2(Algorithm):
                 "q_weights_max": jnp.max(q_weights),
                 "scale_q_mean": jnp.mean(scaled_q),
                 "scale_q_std": jnp.std(scaled_q),
+                "running_q_mean": new_running_mean,
+                "running_q_std": new_running_std,
                 # "mean_q1_std": mean_q1_std,
                 # "mean_q2_std": mean_q2_std,
                 # "entropy": entropy,
