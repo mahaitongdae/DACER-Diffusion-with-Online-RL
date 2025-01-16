@@ -42,9 +42,11 @@ if __name__ == "__main__":
     parser.add_argument("--start_step", type=int, default=int(3e4)) # other envs 3e4
     parser.add_argument("--total_step", type=int, default=int(1e6))
     parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--lr_schedule_end", type=float, default=1e-4)
     parser.add_argument("--alpha_lr", type=float, default=7e-3)
+    parser.add_argument("--delay_alpha_update", type=float, default=250)
     parser.add_argument("--seed", type=int, default=100)
-    parser.add_argument("--num_particles", type=int, default=64)
+    parser.add_argument("--num_particles", type=int, default=32)
     parser.add_argument("--noise_scale", type=float, default=0.1)
     parser.add_argument("--debug", action='store_true', default=False)
     args = parser.parse_args()
@@ -82,7 +84,7 @@ if __name__ == "__main__":
                                           num_timesteps=args.diffusion_steps, 
                                           num_particles=args.num_particles, 
                                           noise_scale=args.noise_scale)
-        algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr)
+        algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
     elif args.alg == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=64)
         algorithm = QSM(agent, params, lr=args.lr)
@@ -128,7 +130,7 @@ if __name__ == "__main__":
         total_step=args.total_step,
         sample_per_iteration=1,
         evaluate_env=eval_env,
-        save_policy_every=50000,
+        save_policy_every=int(args.total_step / 40),
         warmup_with="random",
         log_path=exp_dir,
     )
