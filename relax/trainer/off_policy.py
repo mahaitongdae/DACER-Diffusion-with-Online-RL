@@ -1,7 +1,7 @@
 from pathlib import Path
 import subprocess
 import sys
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, NamedTuple
 
 import jax
 import numpy as np
@@ -76,7 +76,7 @@ class OffPolicyTrainer:
         self.save_policy_interval = Interval(self.save_policy_every)
         # self.eval_interval = Interval()
 
-    def setup(self, dummy_data: Experience):
+    def setup(self, dummy_data: NamedTuple):
         self.algorithm.warmup(dummy_data)
 
         # Setup logger

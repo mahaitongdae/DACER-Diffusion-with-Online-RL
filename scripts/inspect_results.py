@@ -5,13 +5,16 @@ from pathlib import Path
 import re
 import csv
 import pandas as pd
+import numpy as np
 
 from matplotlib import pyplot as plt
 import seaborn as sns
 
 sns.set_style('whitegrid')
+sns.set_context(font_scale=1.2)
 
 def plot_mean(patterns_dict: Dict, env_name, fig_name = None):
+    fig = plt.figure(figsize=(4, 3))
     package_path = Path(relax.__file__)
     logdir = package_path.parent.parent / 'logs' / env_name
     dfs = []
@@ -20,20 +23,23 @@ def plot_mean(patterns_dict: Dict, env_name, fig_name = None):
         for dir in matching_dir:
             csv_path = dir / 'log.csv'
             df = pd.read_csv(str(csv_path))
+            df = df[df['step'] <= 1000000]
             df.loc[:, ('seed')] = str(dir).split('_s')[1].split('_')[0]
-            df.loc[:, ('alg')] = alg
+            df.loc[:, ('Algorithm')] = alg
+            df['Iteration'] = df['step'] / 5
             dfs.append(df)
 
     total_df = pd.concat(dfs, ignore_index=True)
-    sns.lineplot(data=total_df, x='step', y='avg_ret', hue='alg')
+    total_df.rename(columns={'avg_ret': 'Returns'}, inplace=True)
+    sns.lineplot(data=total_df, x='Iteration', y='Returns', hue='Algorithm')
     if fig_name is not None:
-        plt.savefig(str)
+        plt.savefig(fig_name)
     else:
         plt.show()
     
 
 
-def load_best_results(pattern, env_name):
+def load_best_results(pattern, env_name, show_df = False):
     package_path = Path(relax.__file__)
     logdir = package_path.parent.parent / 'logs' / env_name
     # pattern = r".*diffv2.*noise_scale_0\.0\d$"
@@ -45,26 +51,24 @@ def load_best_results(pattern, env_name):
     for dir in matching_dir:
         csv_path = dir / 'log.csv'
         df = pd.read_csv(str(csv_path))
+        df = df[df['step'] <= 1000000]
         sliced_df = df.loc[df['avg_ret'].idxmax()]
         sliced_df.loc['seed'] = str(dir).split('_s')[1].split('_')[0]
         dfs.append(sliced_df)
     total_df = pd.concat(dfs, ignore_index=True, axis=1).T
-    print(total_df.to_markdown())
-    print(total_df['avg_ret'].mean())
+    if show_df:
+        print(total_df.to_markdown())
+    print(f"${total_df['avg_ret'].mean():.2f} \pm {total_df['avg_ret'].std():.2f} $", )
     return total_df
 
 if __name__ == "__main__":
-    # pattern = r".*diffv2.*01-07.*diffv2_ema$"
-    # load_best_results(pattern)
-    # patterns_dict = {
-    #                 #  'ema': r".*diffv2.*01-07.*diffv2_ema$",
-    #                  'sampling_ema': r".*diffv2.*01-07.*diffv2_sampling_with_ema$",
-    #                 #  'lr_schedule': r".*diffv2.*01-07.*diffv2_lr_schedule$", 
-    #                 #  'qsm_lr': r".*qsm.*01-07.*qsm_lr_schedule$",
-    #                  'qsm': r".*qsm.*01-07.*atp1$"}
     patterns_dict = {
-        'sampling_ema': r".*diffv2.*01.*diffv2_sampling_with_ema$",
-        # 'qsm': r".*qsm.*01.*atp1$",
-        # 'sac': r".*sac.*01.*atp1$"
-    }
-    plot_mean(patterns_dict, 'Ant-v4')
+            'ours': r".*diffv2.*01-.*smaller_par$",
+            'QSM': r".*qsm.*01-0.*new_seed_set$",
+            'DIPO': r".*dipo.*01-09.*new_seed_set$",
+            'DACER': r".*dacer.*01-09.*new_seed_set$",
+            'SAC': r".*sac.*01.*large_scale_run$"
+        }
+    for key, value in patterns_dict.items():
+        _ = load_best_results(value, env_name, show_df=False)
+    plot_mean(patterns_dict, 'HalfCheetah-v4')

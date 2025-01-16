@@ -7,7 +7,7 @@ import jax, jax.tree_util as tree
 from jax import ShapeDtypeStruct
 
 from relax.buffer.base import Buffer
-from relax.utils.experience import Experience
+from relax.utils.experience import Experience, LogpExperience
 
 T = TypeVar("T")
 S = TypeVar("S")
@@ -113,6 +113,11 @@ class TreeBuffer(Buffer[T]):
     def from_experience(obs_dim: int, act_dim: int, size: int, seed: int = 0) -> "TreeBuffer[Experience]":
         example = Experience.create_example(obs_dim, act_dim)
         return TreeBuffer.from_example(example, size, seed, remove_batch_dim=False)
+    
+    @staticmethod
+    def from_logp_experience(obs_dim: int, act_dim: int, size: int, seed: int = 0) -> "TreeBuffer[LogpExperience]":
+        example = LogpExperience.create_example(obs_dim, act_dim)
+        return TreeBuffer.from_example(example, size, seed, remove_batch_dim=False)
 
     @staticmethod
     def connect(src: "TreeBuffer[S]", dst: "TreeBuffer[T]", converter: Callable[[S], T]):
@@ -130,3 +135,8 @@ class TreeBuffer(Buffer[T]):
         import types
         src.add = types.MethodType(add, src)
         src.add_batch = types.MethodType(add_batch, src)
+
+class TreeBufferWithQ(TreeBuffer):
+    def __init__(self, spec: ShapeDtypeStructTree, size: int, seed: int = 0) -> None:
+        super().__init__(spec=spec, size=size, seed=seed)
+

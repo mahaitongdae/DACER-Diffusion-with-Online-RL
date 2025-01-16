@@ -13,6 +13,7 @@ from relax.algorithm.dacer_doubleq import DACERDoubleQ
 from relax.algorithm.qsm import QSM
 from relax.algorithm.dipo import DIPO
 from relax.algorithm.diffusion_v2 import Diffv2
+from relax.algorithm.diffusion_v4 import Diffv4
 from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
 from relax.network.dsact import create_dsact_net
@@ -23,7 +24,7 @@ from relax.network.dipo import create_dipo_net
 from relax.network.diffv2 import create_diffv2_net
 from relax.trainer.off_policy import OffPolicyTrainer
 from relax.env import create_env, create_vector_env
-from relax.utils.experience import Experience, ObsActionPair
+from relax.utils.experience import Experience, ObsActionPair, LogpExperience
 from relax.utils.fs import PROJECT_ROOT
 from relax.utils.random_utils import seeding
 from relax.utils.log_diff import log_git_details
@@ -39,11 +40,12 @@ if __name__ == "__main__":
     parser.add_argument("--diffusion_steps", type=int, default=20)
     parser.add_argument("--diffusion_hidden_dim", type=int, default=256)
     parser.add_argument("--start_step", type=int, default=int(3e4)) # other envs 3e4
-    parser.add_argument("--total_step", type=int, default=int(1e6))
+    parser.add_argument("--total_step", type=int, default=int(5e6))
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--alpha_lr", type=float, default=7e-3)
+    parser.add_argument("--lr_schedule_end", type=float, default=5e-5)
     parser.add_argument("--seed", type=int, default=100)
-    parser.add_argument("--num_particles", type=int, default=64)
+    parser.add_argument("--num_particles", type=int, default=32)
     parser.add_argument("--noise_scale", type=float, default=0.1)
     parser.add_argument("--debug", action='store_true', default=False)
     args = parser.parse_args()
@@ -70,7 +72,10 @@ if __name__ == "__main__":
     hidden_sizes = [args.hidden_dim] * args.hidden_num
     diffusion_hidden_sizes = [args.diffusion_hidden_dim] * args.hidden_num
 
-    buffer = TreeBuffer.from_experience(obs_dim, act_dim, size=int(1e6), seed=buffer_seed)
+    if args.alg != "diffv4":
+        buffer = TreeBuffer.from_experience(obs_dim, act_dim, size=int(1e6), seed=buffer_seed)
+    else:
+        buffer = TreeBuffer.from_logp_experience(obs_dim, act_dim, size=int(1e6), seed=buffer_seed)
 
     gelu = partial(jax.nn.gelu, approximate=False)
 
@@ -81,7 +86,15 @@ if __name__ == "__main__":
                                           num_timesteps=args.diffusion_steps, 
                                           num_particles=args.num_particles, 
                                           noise_scale=args.noise_scale)
-        algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr)
+        algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, lr_schedule_end=args.lr_schedule_end)
+    elif args.alg == 'diffv4':
+        def mish(x: jax.Array):
+            return x * jnp.tanh(jax.nn.softplus(x))
+        agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
+                                          num_timesteps=args.diffusion_steps, 
+                                          num_particles=args.num_particles, 
+                                          noise_scale=args.noise_scale)
+        algorithm = Diffv4(agent, params, lr=args.lr, alpha_lr=args.alpha_lr)
     elif args.alg == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=64)
         algorithm = QSM(agent, params, lr=args.lr)
@@ -132,6 +145,9 @@ if __name__ == "__main__":
         log_path=exp_dir,
     )
 
-    trainer.setup(Experience.create_example(obs_dim, act_dim, trainer.batch_size))
+    if args.alg == 'diffv4':
+        trainer.setup(LogpExperience.create_example(obs_dim, act_dim, trainer.batch_size))
+    else:
+        trainer.setup(Experience.create_example(obs_dim, act_dim, trainer.batch_size))
     log_git_details(log_file=os.path.join(exp_dir, 'dacer.diff'))
     trainer.run(train_key)

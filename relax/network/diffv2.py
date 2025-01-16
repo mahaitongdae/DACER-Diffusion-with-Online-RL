@@ -57,19 +57,62 @@ class Diffv2Net:
             act = jnp.take_along_axis(acts, q_best_ind[..., None], axis=0).squeeze(axis=0)
         act = act + jax.random.normal(noise_key, act.shape) * jnp.exp(log_alpha) * self.noise_scale
         return act
+    
+    def get_action_with_logp(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
+        policy_params, log_alpha, q1_params, q2_params = policy_params
 
-    def get_batch_actions(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array, q_func: Callable) -> jax.Array:
-        batch_flatten_obs = obs.repeat(self.num_particles, axis=0)
-        batch_flatten_actions = self.get_action(key, policy_params, batch_flatten_obs)
-        batch_q = q_func(batch_flatten_obs, batch_flatten_actions).reshape(-1, self.num_particles)
-        max_q_idx = batch_q.argmax(axis=1)
-        batch_action = batch_flatten_actions.reshape(obs.shape[0], -1, self.act_dim) # ?
-        slice = lambda x, y: x[y]
-        # action: batch_size, repeat_size, idx: batch_size
-        best_action = jax.vmap(slice, (0, 0))(batch_action, max_q_idx)
-        return best_action
+        def model_fn(t, x):
+            return self.policy(policy_params, obs, x, t)
 
+        def sample(key: jax.Array) -> Union[jax.Array, jax.Array]:
+            act = self.diffusion.p_sample(key, model_fn, (*obs.shape[:-1], self.act_dim))
+            q1 = self.q(q1_params, obs, act)
+            q2 = self.q(q2_params, obs, act)
+            q = jnp.minimum(q1, q2)
+            return act.clip(-1, 1), q
 
+        key, noise_key = jax.random.split(key)
+        if self.num_particles == 1:
+            act = sample(key)
+        else:
+            keys = jax.random.split(key, self.num_particles)
+            acts, qs = jax.vmap(sample)(keys)
+            q_best_ind = jnp.argmax(qs, axis=0, keepdims=True)
+            act = jnp.take_along_axis(acts, q_best_ind[..., None], axis=0).squeeze(axis=0)
+        act = act + jax.random.normal(noise_key, act.shape) * jnp.exp(log_alpha) * self.noise_scale
+        return act
+
+        def model_fn(t, x):
+            return self.policy(policy_params, obs, x, t)
+
+        def sample(key: jax.Array) -> Union[jax.Array, jax.Array]:
+            act = self.diffusion.p_sample(key, model_fn, (*obs.shape[:-1], self.act_dim))
+            q1 = self.q(q1_params, obs, act)
+            q2 = self.q(q2_params, obs, act)
+            q = jnp.minimum(q1, q2)
+            return act.clip(-1, 1), q
+
+        key, noise_key = jax.random.split(key)
+        if self.num_particles == 1:
+            act = sample(key)
+        else:
+            keys = jax.random.split(key, self.num_particles)
+            acts, qs = jax.vmap(sample)(keys)
+            q_best_ind = jnp.argmax(qs, axis=0, keepdims=True)
+            act = jnp.take_along_axis(acts, q_best_ind[..., None], axis=0).squeeze(axis=0)
+        act = act + jax.random.normal(noise_key, act.shape) * jnp.exp(log_alpha) * self.noise_scale
+        return act
+
+    # def get_batch_actions(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array, q_func: Callable) -> jax.Array:
+    #     batch_flatten_obs = obs.repeat(self.num_particles, axis=0)
+    #     batch_flatten_actions = self.get_action(key, policy_params, batch_flatten_obs)
+    #     batch_q = q_func(batch_flatten_obs, batch_flatten_actions).reshape(-1, self.num_particles)
+    #     max_q_idx = batch_q.argmax(axis=1)
+    #     batch_action = batch_flatten_actions.reshape(obs.shape[0], -1, self.act_dim) # ?
+    #     slice = lambda x, y: x[y]
+    #     # action: batch_size, repeat_size, idx: batch_size
+    #     best_action = jax.vmap(slice, (0, 0))(batch_action, max_q_idx)
+    #     return best_action
 
     def get_deterministic_action(self, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
         key = random_key_from_data(obs)
@@ -119,5 +162,5 @@ def create_diffv2_net(
     params = init(key, sample_obs, sample_act)
 
     net = Diffv2Net(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, 
-                    target_entropy=-act_dim*0.9, num_particles=num_particles, noise_scale=noise_scale)
+                    target_entropy=-act_dim, num_particles=num_particles, noise_scale=noise_scale)
     return net, params
