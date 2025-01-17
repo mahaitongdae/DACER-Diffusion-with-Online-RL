@@ -13,6 +13,7 @@ from relax.algorithm.dacer import DACER
 from relax.algorithm.dacer_doubleq import DACERDoubleQ
 from relax.algorithm.qsm import QSM
 from relax.algorithm.dipo import DIPO
+from relax.algorithm.qvpo import QVPO
 from relax.algorithm.diffusion_v2 import Diffv2
 from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
@@ -22,6 +23,7 @@ from relax.network.dacer_doubleq import create_dacer_doubleq_net
 from relax.network.qsm import create_qsm_net
 from relax.network.dipo import create_dipo_net
 from relax.network.diffv2 import create_diffv2_net
+from relax.network.qvpo import create_qvpo_net
 from relax.trainer.off_policy import OffPolicyTrainer
 from relax.env import create_env, create_vector_env
 from relax.utils.experience import Experience, ObsActionPair
@@ -119,6 +121,14 @@ if __name__ == "__main__":
 
         agent, params = create_dipo_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=100)
         algorithm = DIPO(agent, params, diffusion_buffer, lr=args.lr, action_gradient_steps=30, policy_target_delay=2, action_grad_norm=0.16)
+    elif args.alg == "qvpo":
+        def mish(x: jax.Array):
+            return x * jnp.tanh(jax.nn.softplus(x))
+        agent, params = create_qvpo_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
+                                          num_timesteps=args.diffusion_steps,
+                                          num_particles=args.num_particles,
+                                          noise_scale=args.noise_scale)
+        algorithm = QVPO(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update)
     else:
         raise ValueError(f"Invalid algorithm {args.alg}!")
 
