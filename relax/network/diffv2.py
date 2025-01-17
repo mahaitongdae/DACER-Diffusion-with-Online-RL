@@ -119,5 +119,5 @@ def create_diffv2_net(
     params = init(key, sample_obs, sample_act)
 
     net = Diffv2Net(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, 
-                    target_entropy=-act_dim*0.9, num_particles=num_particles, noise_scale=noise_scale)
+                    target_entropy=-act_dim*1.5, num_particles=num_particles, noise_scale=noise_scale)
     return net, params

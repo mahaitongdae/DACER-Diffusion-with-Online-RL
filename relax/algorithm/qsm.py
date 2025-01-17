@@ -21,18 +21,25 @@ class QSMTrainState(NamedTuple):
 
 
 class QSM(Algorithm):
-    def __init__(self, agent: QSMNet, params: QSMParams, *, gamma: float = 0.99, lr: float = 3e-4, tau: float = 0.005):
+    def __init__(self, agent: QSMNet, params: QSMParams, *, gamma: float = 0.99, lr: float = 3e-4, tau: float = 0.005, lr_schedule_end=5e-5):
         self.agent = agent
         self.gamma = gamma
         self.tau = tau
         self.optim = optax.adam(lr)
+        lr_schedule = optax.schedules.linear_schedule(
+            init_value=lr,
+            end_value=lr_schedule_end,
+            transition_steps=int(5e4),
+            transition_begin=int(2.5e4),
+        )
+        self.policy_optim = optax.adam(learning_rate=lr_schedule)
 
         self.state = QSMTrainState(
             params=params,
             opt_state=QSMOptStates(
                 q1=self.optim.init(params.q1),
                 q2=self.optim.init(params.q2),
-                q_score=self.optim.init(params.q_score),
+                q_score=self.policy_optim.init(params.q_score),
             ),
         )
 
@@ -77,7 +84,7 @@ class QSM(Algorithm):
 
             (q_score_loss, aux), q_score_grads = jax.value_and_grad(q_score_loss_fn, has_aux=True)(q_score_params)
             q1, q2 = aux
-            q_score_update, q_score_opt_state = self.optim.update(q_score_grads, q_score_opt_state)
+            q_score_update, q_score_opt_state = self.policy_optim.update(q_score_grads, q_score_opt_state)
             q_score_params = optax.apply_updates(q_score_params, q_score_update)
 
             # update target q

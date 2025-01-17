@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_step", type=int, default=int(3e4)) # other envs 3e4
     parser.add_argument("--total_step", type=int, default=int(1e6))
     parser.add_argument("--lr", type=float, default=3e-4)
-    parser.add_argument("--lr_schedule_end", type=float, default=1e-4)
+    parser.add_argument("--lr_schedule_end", type=float, default=3e-5)
     parser.add_argument("--alpha_lr", type=float, default=7e-3)
     parser.add_argument("--delay_alpha_update", type=float, default=250)
     parser.add_argument("--seed", type=int, default=100)
@@ -86,8 +86,8 @@ if __name__ == "__main__":
                                           noise_scale=args.noise_scale)
         algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
     elif args.alg == "qsm":
-        agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=64)
-        algorithm = QSM(agent, params, lr=args.lr)
+        agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=args.num_particles)
+        algorithm = QSM(agent, params, lr=args.lr, lr_schedule_end=args.lr_schedule_end)
     elif args.alg == "sac":
         agent, params = create_sac_net(init_network_key, obs_dim, act_dim, hidden_sizes, gelu)
         algorithm = SAC(agent, params, lr=args.lr)
@@ -97,8 +97,9 @@ if __name__ == "__main__":
     elif args.alg == "dacer":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
-        agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish, num_timesteps=args.diffusion_steps)
-        algorithm = DACER(agent, params, lr=args.lr)
+        agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish, 
+                                         num_timesteps=args.diffusion_steps)
+        algorithm = DACER(agent, params, lr=args.lr, lr_schedule_end=args.lr_schedule_end)
     elif args.alg == "dacer_doubleq":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
