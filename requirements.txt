@@ -9,7 +9,7 @@ tensorboardX
 ipdb
 
 # Used by environment
-gymnasium[mujoco]==0.29.1
+gymnasium[mujoco]==1.0.0
 dill==0.3.8
 # free-mujoco-py
 matplotlib

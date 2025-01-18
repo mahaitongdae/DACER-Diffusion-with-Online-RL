@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
+from gymnasium import Env
 from typing import Optional, Tuple
 
 import numpy as np
 
 
-class VectorEnv(ABC):
+class VectorEnv(Env):
     """Base class for vectorized environments in relax."""
 
     @abstractmethod
