@@ -194,18 +194,25 @@ class Diffv2(Algorithm):
                 # q1_mean, _ = self.agent.q(q1_params, obs, new_action)
                 # q2_mean, _ = self.agent.q(q2_params, obs, new_action)
                 # q_mean = jnp.minimum(q1_mean, q2_mean)
-                q_min = get_min_q(next_obs, next_action)
-                # norm_q = (q_mean - q_mean.mean()) / q_mean.std()
-                q_mean, q_std = q_min.mean(), q_min.std()
-                norm_q = q_min - running_mean / running_std
-                scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
-                q_weights = jnp.exp(scaled_q)
+                
                 # q_weights = q_weights
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, next_obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
-                loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
-                                                            jax.lax.stop_gradient(next_action))
+                # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
+                #                                             jax.lax.stop_gradient(next_action))
+                noise = jax.random.normal(key, action.shape)
+                recon = jax.vmap(self.agent.diffusion.get_recon)(t, action, noise)
+                q_min = get_min_q(obs, recon)
+                q_mean, q_std = q_min.mean(), q_min.std()
+                norm_q = q_min - running_mean / running_std
+                scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
+                q_weights = jnp.exp(scaled_q)
+                loss, q_mean, q_std = self.agent.diffusion.reverse_samping_weighted_p_loss(noise,
+                                                                            q_weights,
+                                                                            denoiser,
+                                                                            t,
+                                                                            action,)
 
                 return loss, (q_weights, scaled_q, q_mean, q_std)
 

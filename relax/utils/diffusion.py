@@ -89,6 +89,11 @@ class GaussianDiffusion:
         model_mean = x_recon * B.posterior_mean_coef1[t] + x * B.posterior_mean_coef2[t]
         model_log_variance = B.posterior_log_variance_clipped[t]
         return model_mean, model_log_variance
+    
+    def get_recon(self, t: int, x: jax.Array, noise: jax.Array):
+        B = self.beta_schedule()
+        x_recon = x * B.sqrt_recip_alphas_cumprod[t] - noise * B.sqrt_recipm1_alphas_cumprod[t]
+        return x_recon
 
     def p_sample(self, key: jax.Array, model: DiffusionModel, shape: Tuple[int, ...]) -> jax.Array:
         x_key, noise_key = jax.random.split(key)
@@ -127,6 +132,15 @@ class GaussianDiffusion:
         noise = jax.random.normal(key, x_start.shape)
         x_noisy = jax.vmap(self.q_sample)(t, x_start, noise)
         noise_pred = model(t, x_noisy)
+        loss = weights * optax.squared_error(noise_pred, noise)
+        return loss.mean()
+    
+    def reverse_samping_weighted_p_loss(self, noise: jax.Array, weights: jax.Array, model: DiffusionModel, t: jax.Array,
+                        x_t: jax.Array):
+        if len(weights.shape) == 1:
+            weights = weights.reshape(-1, 1)
+        assert t.ndim == 1 and t.shape[0] == x_t.shape[0]
+        noise_pred = model(t, x_t)
         loss = weights * optax.squared_error(noise_pred, noise)
         return loss.mean()
 

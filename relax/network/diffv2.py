@@ -97,6 +97,7 @@ def create_diffv2_net(
     num_timesteps: int = 20,
     num_particles: int = 4,
     noise_scale: float = 0.05,
+    target_entropy_scale: float = 0.9,
     ) -> Tuple[Diffv2Net, Diffv2Params]:
     # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
     q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
@@ -119,5 +120,5 @@ def create_diffv2_net(
     params = init(key, sample_obs, sample_act)
 
     net = Diffv2Net(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, 
-                    target_entropy=-act_dim*1.5, num_particles=num_particles, noise_scale=noise_scale)
+                    target_entropy=-act_dim*target_entropy_scale, num_particles=num_particles, noise_scale=noise_scale)
     return net, params
