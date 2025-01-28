@@ -44,6 +44,7 @@ class Diffv2(Algorithm):
         delay_update: int = 2,
         reward_scale: float = 0.2,
         num_samples: int = 200,
+        use_ema: bool = True,
     ):
         self.agent = agent
         self.gamma = gamma
@@ -77,6 +78,7 @@ class Diffv2(Algorithm):
             running_mean=jnp.float32(0.0),
             running_std=jnp.float32(1.0)
         )
+        self.use_ema = use_ema
 
         @jax.jit
         def stateless_update(
@@ -324,12 +326,13 @@ class Diffv2(Algorithm):
         return (self.state.params.target_poicy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2)
 
     def save_policy(self, path: str) -> None:
-        policy = jax.device_get(self.get_policy_params_to_save())
+        policy = jax.device_get(self.get_policy_params_to_save()) if self.use_ema else jax.device_get(self.get_policy_params())
         with open(path, "wb") as f:
             pickle.dump(policy, f)
 
     def get_action(self, key: jax.Array, obs: np.ndarray) -> np.ndarray:
-        action = self._get_action(key, self.get_policy_params_to_save(), obs)
+        params = jax.lax.cond(self.use_ema, self.get_policy_params_to_save, self.get_policy_params)
+        action = self._get_action(key, params, obs)
         return np.asarray(action)
 
 def estimate_entropy(actions, num_components=3):  # (batch, sample, dim)
