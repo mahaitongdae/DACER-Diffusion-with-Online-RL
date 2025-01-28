@@ -208,7 +208,7 @@ class Diffv2(Algorithm):
                 norm_q = q_min - running_mean / running_std
                 scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
-                loss, q_mean, q_std = self.agent.diffusion.reverse_samping_weighted_p_loss(noise,
+                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise,
                                                                             q_weights,
                                                                             denoiser,
                                                                             t,
