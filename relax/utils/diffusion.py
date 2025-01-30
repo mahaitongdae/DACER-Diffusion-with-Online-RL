@@ -97,8 +97,7 @@ class GaussianDiffusion:
 
     def beta_schedule(self):
         with jax.ensure_compile_time_eval():
-            betas = BetaScheduleCoefficients.linear_beta_schedule(self.num_timesteps)
-            # betas = BetaScheduleCoefficients.sqrt_beta_schedule(self.num_timesteps)
+            betas = BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
             return BetaScheduleCoefficients.from_beta(betas)
 
     def p_mean_variance(self, t: int, x: jax.Array, noise_pred: jax.Array):
