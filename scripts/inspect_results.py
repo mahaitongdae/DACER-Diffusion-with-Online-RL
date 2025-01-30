@@ -75,10 +75,10 @@ if __name__ == "__main__":
     #                 #  'qsm_lr': r".*qsm.*01-07.*qsm_lr_schedule$",
     #                  'qsm': r".*qsm.*01-07.*atp1$"}
     patterns_dict = {
-        'sqrt_noise': r".*diffv2.*sqrt_noise$",
-        'cosine_noise': r".*diffv2.*cosine_noise$",
-        'linear_noise': r".*diffv2.*linear_noise$",
+        # 'sqrt_noise': r".*diffv2.*sqrt_noise$",
+        'cosine_noise': r".*diffv2.*01-29_22.*swimmer_cosine$",
+        'linear_noise': r".*diffv2.*16.*swimmer_linear$",
         # 'qsm': r".*qsm.*01.*atp1$",
         # 'sac': r".*sac.*01.*atp1$"
     }
-    plot_mean(patterns_dict, 'Ant-v4', "figures/noise-schedule.")
+    plot_mean(patterns_dict, 'Swimmer-v4', "figures/noise-schedule.pdf")

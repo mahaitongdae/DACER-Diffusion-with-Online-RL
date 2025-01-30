@@ -94,10 +94,19 @@ class BetaScheduleCoefficients:
 @dataclass(frozen=True)
 class GaussianDiffusion:
     num_timesteps: int
+    noise_schedule: str
 
     def beta_schedule(self):
         with jax.ensure_compile_time_eval():
-            betas = BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
+            if self.noise_schedule == "cosine":
+                print("Using cosine noise schedule")
+                betas = BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
+            elif self.noise_schedule == "linear":
+                print("Using linear noise schedule")
+                betas = BetaScheduleCoefficients.linear_beta_schedule(self.num_timesteps)
+            elif self.noise_schedule == "sqrt":
+                print("Using sqrt noise schedule")
+                betas = BetaScheduleCoefficients.sqrt_beta_schedule(self.num_timesteps)
             return BetaScheduleCoefficients.from_beta(betas)
 
     def p_mean_variance(self, t: int, x: jax.Array, noise_pred: jax.Array):

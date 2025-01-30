@@ -29,10 +29,11 @@ class Diffv2Net:
     num_particles: int
     target_entropy: float
     noise_scale: float
+    noise_schedule: str
 
     @property
     def diffusion(self) -> GaussianDiffusion:
-        return GaussianDiffusion(self.num_timesteps)
+        return GaussianDiffusion(self.num_timesteps, self.noise_schedule)
 
     def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
         policy_params, log_alpha, q1_params, q2_params = policy_params
@@ -97,6 +98,7 @@ def create_diffv2_net(
     num_timesteps: int = 20,
     num_particles: int = 4,
     noise_scale: float = 0.05,
+    noise_schedule: str = "cosine",
     ) -> Tuple[Diffv2Net, Diffv2Params]:
     # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
     q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
@@ -119,5 +121,5 @@ def create_diffv2_net(
     params = init(key, sample_obs, sample_act)
 
     net = Diffv2Net(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, 
-                    target_entropy=-act_dim*1.5, num_particles=num_particles, noise_scale=noise_scale)
+                    target_entropy=-act_dim*1.5, num_particles=num_particles, noise_scale=noise_scale, noise_schedule=noise_schedule)
     return net, params
