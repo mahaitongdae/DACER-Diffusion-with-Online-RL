@@ -15,7 +15,7 @@ sns.set_context(font_scale=1.2)
 
 def plot_mean(patterns_dict: Dict, env_name, fig_name = None,
               max_steps=None):
-    plt.figure(figsize=(4, 3))
+    plt.figure(figsize=(8, 6))
     package_path = Path(relax.__file__)
     logdir = package_path.parent.parent / 'logs' / env_name
     dfs = []
@@ -25,15 +25,15 @@ def plot_mean(patterns_dict: Dict, env_name, fig_name = None,
             csv_path = dir / 'log.csv'
             df = pd.read_csv(str(csv_path))
             df.loc[:, ('seed')] = str(dir).split('_s')[1].split('_')[0]
-            df.loc[:, ('alg')] = alg
+            df.loc[:, ('schedule')] = alg
             dfs.append(df)
 
     total_df = pd.concat(dfs, ignore_index=True)
     if max_steps is not None:
         total_df = total_df[total_df['step'] < max_steps]
-    sns.lineplot(data=total_df, x='step', y='avg_ret', hue='alg')
+    sns.lineplot(data=total_df, x='step', y='avg_ret', hue='schedule', errorbar="sd")
     if fig_name is not None:
-        plt.savefig(str)
+        plt.savefig(fig_name)
     else:
         plt.show()
     
@@ -75,8 +75,10 @@ if __name__ == "__main__":
     #                 #  'qsm_lr': r".*qsm.*01-07.*qsm_lr_schedule$",
     #                  'qsm': r".*qsm.*01-07.*atp1$"}
     patterns_dict = {
-        'sampling_ema': r".*diffv2.*01.*diffv2_sampling_with_ema$",
+        'sqrt_noise': r".*diffv2.*sqrt_noise$",
+        'cosine_noise': r".*diffv2.*cosine_noise$",
+        'linear_noise': r".*diffv2.*linear_noise$",
         # 'qsm': r".*qsm.*01.*atp1$",
         # 'sac': r".*sac.*01.*atp1$"
     }
-    plot_mean(patterns_dict, 'Ant-v4')
+    plot_mean(patterns_dict, 'Ant-v4', "figures/noise-schedule.")
