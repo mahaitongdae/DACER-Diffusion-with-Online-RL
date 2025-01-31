@@ -39,12 +39,32 @@ patterns_dict = {
 
 for key, value in patterns_dict.items():
     print(key)
-    _ = load_best_results(value, env_name, show_df=False)
+    _ = load_results(value, env_name, show_df=False)
 
 plot_mean(patterns_dict, env_name)
 ```
 
-We also provide sample logs that can be visualized via directly running the commands.
+We also provide a sample log that can be visualized via directly running the commands.
+
+```python 
+from relax.utils.inspect_results import load_results, plot_mean
+
+env_name = 'Ant-v4'
+
+patterns_dict = {
+        'sdac': r'.*sdac.*' # regex expression of saved folders
+    }
+
+# For show the sample log
+from pathlib import Path
+import relax
+package_path = Path(relax.__file__)
+logdir = package_path.parent / 'sample_logs'
+for key, value in patterns_dict.items():
+    print(key)
+    _ = load_results(value, env_name, show_df=False, path=logdir)
+plot_mean(patterns_dict, env_name, path=logdir)
+```
 
 
 

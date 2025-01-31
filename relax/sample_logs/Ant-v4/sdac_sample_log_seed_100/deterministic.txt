@@ -1,0 +1,565 @@
+Exported with Jax version 0.4.27
+
+--------- In ---------
+policy_params: ({'dacer_policy_net/linear': {'b': float32[32],
+                                             'w': float32[16,32]},
+                 'dacer_policy_net/linear_1': {'b': float32[16],
+                                               'w': float32[32,16]},
+                 'dacer_policy_net/linear_2': {'b': float32[256],
+                                               'w': float32[51,256]},
+                 'dacer_policy_net/linear_3': {'b': float32[256],
+                                               'w': float32[256,256]},
+                 'dacer_policy_net/linear_4': {'b': float32[256],
+                                               'w': float32[256,256]},
+                 'dacer_policy_net/linear_5': {'b': float32[8],
+                                               'w': float32[256,8]}},
+                float32[],
+                {'q_net/linear': {'b': float32[256],
+                                  'w': float32[35,256]},
+                 'q_net/linear_1': {'b': float32[256],
+                                    'w': float32[256,256]},
+                 'q_net/linear_2': {'b': float32[256],
+                                    'w': float32[256,256]},
+                 'q_net/linear_3': {'b': float32[1],
+                                    'w': float32[256,1]}},
+                {'q_net/linear': {'b': float32[256],
+                                  'w': float32[35,256]},
+                 'q_net/linear_1': {'b': float32[256],
+                                    'w': float32[256,256]},
+                 'q_net/linear_2': {'b': float32[256],
+                                    'w': float32[256,256]},
+                 'q_net/linear_3': {'b': float32[1],
+                                    'w': float32[256,1]}})
+
+obs: float32[27]
+
+--------- Out ---------
+float32[8]
+
+--------- Jaxpr ---------
+let softplus = { lambda ; a:f32[32,256]. let
+    b:f32[32,256] = custom_jvp_call[
+      call_jaxpr={ lambda ; c:f32[32,256] d:i32[]. let
+          e:f32[32,256] = pjit[
+            name=logaddexp
+            jaxpr={ lambda ; f:f32[32,256] g:i32[]. let
+                h:f32[] = convert_element_type[
+                  new_dtype=float32
+                  weak_type=False
+                ] g
+                i:f32[32,256] = max f h
+                j:f32[32,256] = sub f h
+                k:bool[32,256] = ne j j
+                l:f32[32,256] = add f h
+                m:f32[32,256] = abs j
+                n:f32[32,256] = neg m
+                o:f32[32,256] = exp n
+                p:f32[32,256] = log1p o
+                q:f32[32,256] = add i p
+                r:f32[32,256] = select_n k q l
+              in (r,) }
+          ] c d
+        in (e,) }
+      jvp_jaxpr_thunk=<function _memoize.<locals>.memoized at 0x1539b40cf2e0>
+      num_consts=0
+      symbolic_zeros=False
+    ] a 0
+  in (b,) } in
+let jaxpr = { lambda ; c:f32[32,256] d:i32[]. let
+    e:f32[32,256] = pjit[
+      name=logaddexp
+      jaxpr={ lambda ; f:f32[32,256] g:i32[]. let
+          h:f32[] = convert_element_type[new_dtype=float32 weak_type=False] g
+          i:f32[32,256] = max f h
+          j:f32[32,256] = sub f h
+          k:bool[32,256] = ne j j
+          l:f32[32,256] = add f h
+          m:f32[32,256] = abs j
+          n:f32[32,256] = neg m
+          o:f32[32,256] = exp n
+          p:f32[32,256] = log1p o
+          q:f32[32,256] = add i p
+          r:f32[32,256] = select_n k q l
+        in (r,) }
+    ] c d
+  in (e,) } in
+let logaddexp = { lambda ; f:f32[32,256] g:i32[]. let
+    h:f32[] = convert_element_type[new_dtype=float32 weak_type=False] g
+    i:f32[32,256] = max f h
+    j:f32[32,256] = sub f h
+    k:bool[32,256] = ne j j
+    l:f32[32,256] = add f h
+    m:f32[32,256] = abs j
+    n:f32[32,256] = neg m
+    o:f32[32,256] = exp n
+    p:f32[32,256] = log1p o
+    q:f32[32,256] = add i p
+    r:f32[32,256] = select_n k q l
+  in (r,) } in
+{ lambda s:f32[20] t:f32[20] u:f32[20] v:f32[20] w:f32[20]; x:f32[32] y:f32[16,32]
+    z:f32[16] ba:f32[32,16] bb:f32[256] bc:f32[51,256] bd:f32[256] be:f32[256,256]
+    bf:f32[256] bg:f32[256,256] bh:f32[8] bi:f32[256,8] bj:f32[] bk:f32[256] bl:f32[35,256]
+    bm:f32[256] bn:f32[256,256] bo:f32[256] bp:f32[256,256] bq:f32[1] br:f32[256,1]
+    bs:f32[256] bt:f32[35,256] bu:f32[256] bv:f32[256,256] bw:f32[256] bx:f32[256,256]
+    by:f32[1] bz:f32[256,1] ca:f32[27]. let
+    cb:f32[] = reduce_sum[axes=(0,)] ca
+    cc:f32[] = div cb 27.0
+    cd:f32[] = pjit[
+      name=_std
+      jaxpr={ lambda ; ce:f32[27] cf:i32[]. let
+          cg:f32[] = pjit[
+            name=_var
+            jaxpr={ lambda ; ch:f32[27] ci:i32[]. let
+                cj:f32[] = reduce_sum[axes=(0,)] ch
+                ck:f32[1] = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] cj
+                cl:f32[1] = div ck 27.0
+                cm:f32[27] = sub ch cl
+                cn:f32[27] = integer_pow[y=2] cm
+                co:f32[] = convert_element_type[
+                  new_dtype=float32
+                  weak_type=False
+                ] ci
+                cp:f32[] = sub 27.0 co
+                cq:f32[] = reduce_sum[axes=(0,)] cn
+                cr:f32[] = div cq cp
+              in (cr,) }
+          ] ce cf
+          cs:f32[] = sqrt cg
+        in (cs,) }
+    ] ca 0
+    ct:f32[] = mul cc cd
+    cu:f32[1] = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] ct
+    cv:u32[1] = bitcast_convert_type[new_dtype=uint32] cu
+    cw:u32[] = squeeze[dimensions=(0,)] cv
+    cx:key<fry>[] = random_seed[impl=fry] cw
+    cy:key<fry>[2] = random_split[shape=(2,)] cx
+    cz:key<fry>[1] = slice[limit_indices=(1,) start_indices=(0,) strides=(1,)] cy
+    da:key<fry>[] = squeeze[dimensions=(0,)] cz
+    db:key<fry>[1] = slice[limit_indices=(2,) start_indices=(1,) strides=(1,)] cy
+    dc:key<fry>[] = squeeze[dimensions=(0,)] db
+    dd:key<fry>[32] = random_split[shape=(32,)] da
+    de:key<fry>[32,2] = random_split[shape=(2,)] dd
+    df:key<fry>[32,1] = slice[
+      limit_indices=(32, 1)
+      start_indices=(0, 0)
+      strides=(1, 1)
+    ] de
+    dg:key<fry>[32] = squeeze[dimensions=(1,)] df
+    dh:key<fry>[32,1] = slice[
+      limit_indices=(32, 2)
+      start_indices=(0, 1)
+      strides=(1, 1)
+    ] de
+    di:key<fry>[32] = squeeze[dimensions=(1,)] dh
+    dj:f32[32,8] = pjit[
+      name=_normal
+      jaxpr={ lambda ; dk:key<fry>[32]. let
+          dl:f32[32,8] = pjit[
+            name=_normal_real
+            jaxpr={ lambda ; dm:key<fry>[32]. let
+                dn:f32[32,8] = pjit[
+                  name=_uniform
+                  jaxpr={ lambda ; do:key<fry>[32] dp:f32[] dq:f32[]. let
+                      dr:f32[1] = broadcast_in_dim[
+                        broadcast_dimensions=()
+                        shape=(1,)
+                      ] dp
+                      ds:f32[1] = broadcast_in_dim[
+                        broadcast_dimensions=()
+                        shape=(1,)
+                      ] dq
+                      dt:u32[32,8] = random_bits[bit_width=32 shape=(8,)] do
+                      du:u32[32,8] = shift_right_logical dt 9
+                      dv:u32[32,8] = or du 1065353216
+                      dw:f32[32,8] = bitcast_convert_type[new_dtype=float32] dv
+                      dx:f32[32,8] = sub dw 1.0
+                      dy:f32[1] = sub ds dr
+                      dz:f32[1,1] = broadcast_in_dim[
+                        broadcast_dimensions=(1,)
+                        shape=(1, 1)
+                      ] dy
+                      ea:f32[32,8] = mul dx dz
+                      eb:f32[1,1] = broadcast_in_dim[
+                        broadcast_dimensions=(1,)
+                        shape=(1, 1)
+                      ] dr
+                      ec:f32[32,8] = add ea eb
+                      ed:f32[1,1] = broadcast_in_dim[
+                        broadcast_dimensions=(1,)
+                        shape=(1, 1)
+                      ] dr
+                      ee:f32[32,8] = max ed ec
+                    in (ee,) }
+                ] dm -0.9999999403953552 1.0
+                ef:f32[32,8] = erf_inv dn
+                eg:f32[32,8] = mul 1.4142135381698608 ef
+              in (eg,) }
+          ] dk
+        in (dl,) }
+    ] dg
+    eh:f32[32,8] = mul 0.5 dj
+    ei:f32[32,20,8] = pjit[
+      name=_normal
+      jaxpr={ lambda ; ej:key<fry>[32]. let
+          ek:f32[32,20,8] = pjit[
+            name=_normal_real
+            jaxpr={ lambda ; el:key<fry>[32]. let
+                em:f32[32,20,8] = pjit[
+                  name=_uniform
+                  jaxpr={ lambda ; en:key<fry>[32] eo:f32[] ep:f32[]. let
+                      eq:f32[1,1] = broadcast_in_dim[
+                        broadcast_dimensions=()
+                        shape=(1, 1)
+                      ] eo
+                      er:f32[1,1] = broadcast_in_dim[
+                        broadcast_dimensions=()
+                        shape=(1, 1)
+                      ] ep
+                      es:u32[32,20,8] = random_bits[bit_width=32 shape=(20, 8)] en
+                      et:u32[32,20,8] = shift_right_logical es 9
+                      eu:u32[32,20,8] = or et 1065353216
+                      ev:f32[32,20,8] = bitcast_convert_type[new_dtype=float32] eu
+                      ew:f32[32,20,8] = sub ev 1.0
+                      ex:f32[1,1] = sub er eq
+                      ey:f32[1,1,1] = broadcast_in_dim[
+                        broadcast_dimensions=(1, 2)
+                        shape=(1, 1, 1)
+                      ] ex
+                      ez:f32[32,20,8] = mul ew ey
+                      fa:f32[1,1,1] = broadcast_in_dim[
+                        broadcast_dimensions=(1, 2)
+                        shape=(1, 1, 1)
+                      ] eq
+                      fb:f32[32,20,8] = add ez fa
+                      fc:f32[1,1,1] = broadcast_in_dim[
+                        broadcast_dimensions=(1, 2)
+                        shape=(1, 1, 1)
+                      ] eq
+                      fd:f32[32,20,8] = max fc fb
+                    in (fd,) }
+                ] el -0.9999999403953552 1.0
+                fe:f32[32,20,8] = erf_inv em
+                ff:f32[32,20,8] = mul 1.4142135381698608 fe
+              in (ff,) }
+          ] ej
+        in (ek,) }
+    ] di
+    fg:i32[20] = iota[dimension=0 dtype=int32 shape=(20,)] 
+    fh:i32[20] = rev[dimensions=(0,)] fg
+    fi:f32[20,32,8] = transpose[permutation=(1, 0, 2)] ei
+    fj:f32[32,8] = scan[
+      _split_transpose=False
+      jaxpr={ lambda ; fk:f32[16,32] fl:f32[32] fm:f32[32,16] fn:f32[16] fo:f32[27]
+          fp:f32[51,256] fq:f32[256] fr:f32[256,256] fs:f32[256] ft:f32[256,256]
+          fu:f32[256] fv:f32[256,8] fw:f32[8] fx:f32[20] fy:f32[20] fz:f32[20] ga:f32[20]
+          gb:f32[20] gc:f32[32,8] gd:i32[] ge:f32[32,8]. let
+          gf:i32[8] = iota[dimension=0 dtype=int32 shape=(8,)] 
+          gg:f32[8] = convert_element_type[new_dtype=float32 weak_type=False] gf
+          gh:f32[8] = div gg 8.0
+          gi:f32[8] = neg gh
+          gj:f32[8] = pow 10000.0 gi
+          gk:f32[8] = dot_general[
+            dimension_numbers=(([], []), ([], []))
+            preferred_element_type=float32
+          ] gd gj
+          gl:f32[8] = sin gk
+          gm:f32[8] = cos gk
+          gn:f32[16] = concatenate[dimension=0] gl gm
+          go:f32[16] = mul gn 0.25
+          gp:f32[32] = dot_general[
+            dimension_numbers=(([0], [0]), ([], []))
+            preferred_element_type=float32
+          ] go fk
+          gq:f32[32] = add gp fl
+          gr:f32[32] = pjit[
+            name=softplus
+            jaxpr={ lambda ; gs:f32[32]. let
+                gt:f32[32] = custom_jvp_call[
+                  call_jaxpr={ lambda ; gu:f32[32] gv:i32[]. let
+                      gw:f32[32] = pjit[
+                        name=logaddexp
+                        jaxpr={ lambda ; gx:f32[32] gy:i32[]. let
+                            gz:f32[] = convert_element_type[
+                              new_dtype=float32
+                              weak_type=False
+                            ] gy
+                            ha:f32[32] = max gx gz
+                            hb:f32[32] = sub gx gz
+                            hc:bool[32] = ne hb hb
+                            hd:f32[32] = add gx gz
+                            he:f32[32] = abs hb
+                            hf:f32[32] = neg he
+                            hg:f32[32] = exp hf
+                            hh:f32[32] = log1p hg
+                            hi:f32[32] = add ha hh
+                            hj:f32[32] = select_n hc hi hd
+                          in (hj,) }
+                      ] gu gv
+                    in (gw,) }
+                  jvp_jaxpr_thunk=<function _memoize.<locals>.memoized at 0x15393a0d1fc0>
+                  num_consts=0
+                  symbolic_zeros=False
+                ] gs 0
+              in (gt,) }
+          ] gq
+          hk:f32[32] = tanh gr
+          hl:f32[32] = mul gq hk
+          hm:f32[16] = dot_general[
+            dimension_numbers=(([0], [0]), ([], []))
+            preferred_element_type=float32
+          ] hl fm
+          hn:f32[16] = add hm fn
+          ho:f32[32,27] = broadcast_in_dim[
+            broadcast_dimensions=(1,)
+            shape=(32, 27)
+          ] fo
+          hp:f32[32,16] = broadcast_in_dim[
+            broadcast_dimensions=(1,)
+            shape=(32, 16)
+          ] hn
+          hq:f32[32,51] = concatenate[dimension=1] ho gc hp
+          hr:f32[32,256] = dot_general[
+            dimension_numbers=(([1], [0]), ([], []))
+            preferred_element_type=float32
+          ] hq fp
+          hs:f32[1,256] = broadcast_in_dim[
+            broadcast_dimensions=(1,)
+            shape=(1, 256)
+          ] fq
+          ht:f32[32,256] = add hr hs
+          hu:f32[32,256] = pjit[name=softplus jaxpr=softplus] ht
+          hv:f32[32,256] = tanh hu
+          hw:f32[32,256] = mul ht hv
+          hx:f32[32,256] = dot_general[
+            dimension_numbers=(([1], [0]), ([], []))
+            preferred_element_type=float32
+          ] hw fr
+          hy:f32[1,256] = broadcast_in_dim[
+            broadcast_dimensions=(1,)
+            shape=(1, 256)
+          ] fs
+          hz:f32[32,256] = add hx hy
+          ia:f32[32,256] = pjit[name=softplus jaxpr=softplus] hz
+          ib:f32[32,256] = tanh ia
+          ic:f32[32,256] = mul hz ib
+          id:f32[32,256] = dot_general[
+            dimension_numbers=(([1], [0]), ([], []))
+            preferred_element_type=float32
+          ] ic ft
+          ie:f32[1,256] = broadcast_in_dim[
+            broadcast_dimensions=(1,)
+            shape=(1, 256)
+          ] fu
+          if:f32[32,256] = add id ie
+          ig:f32[32,256] = pjit[name=softplus jaxpr=softplus] if
+          ih:f32[32,256] = tanh ig
+          ii:f32[32,256] = mul if ih
+          ij:f32[32,8] = dot_general[
+            dimension_numbers=(([1], [0]), ([], []))
+            preferred_element_type=float32
+          ] ii fv
+          ik:f32[1,8] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 8)] fw
+          il:f32[32,8] = add ij ik
+          im:bool[] = lt gd 0
+          in:i32[] = add gd 20
+          io:i32[] = select_n im gd in
+          ip:f32[1] = dynamic_slice[slice_sizes=(1,)] fx io
+          iq:f32[] = squeeze[dimensions=(0,)] ip
+          ir:f32[32,8] = mul gc iq
+          is:bool[] = lt gd 0
+          it:i32[] = add gd 20
+          iu:i32[] = select_n is gd it
+          iv:f32[1] = dynamic_slice[slice_sizes=(1,)] fy iu
+          iw:f32[] = squeeze[dimensions=(0,)] iv
+          ix:f32[32,8] = mul il iw
+          iy:f32[32,8] = sub ir ix
+          iz:f32[32,8] = pjit[
+            name=clip
+            jaxpr={ lambda ; ja:f32[32,8] jb:i32[] jc:i32[]. let
+                jd:f32[] = convert_element_type[
+                  new_dtype=float32
+                  weak_type=False
+                ] jb
+                je:f32[32,8] = max jd ja
+                jf:f32[] = convert_element_type[
+                  new_dtype=float32
+                  weak_type=False
+                ] jc
+                jg:f32[32,8] = min jf je
+              in (jg,) }
+          ] iy -1 1
+          jh:bool[] = lt gd 0
+          ji:i32[] = add gd 20
+          jj:i32[] = select_n jh gd ji
+          jk:f32[1] = dynamic_slice[slice_sizes=(1,)] fz jj
+          jl:f32[] = squeeze[dimensions=(0,)] jk
+          jm:f32[32,8] = mul iz jl
+          jn:bool[] = lt gd 0
+          jo:i32[] = add gd 20
+          jp:i32[] = select_n jn gd jo
+          jq:f32[1] = dynamic_slice[slice_sizes=(1,)] ga jp
+          jr:f32[] = squeeze[dimensions=(0,)] jq
+          js:f32[32,8] = mul gc jr
+          jt:f32[32,8] = add jm js
+          ju:bool[] = lt gd 0
+          jv:i32[] = add gd 20
+          jw:i32[] = select_n ju gd jv
+          jx:f32[1] = dynamic_slice[slice_sizes=(1,)] gb jw
+          jy:f32[] = squeeze[dimensions=(0,)] jx
+          jz:bool[] = gt gd 0
+          ka:f32[] = mul 0.5 jy
+          kb:f32[] = exp ka
+          kc:f32[] = convert_element_type[new_dtype=float32 weak_type=False] jz
+          kd:f32[] = mul kc kb
+          ke:f32[32,8] = mul kd ge
+          kf:f32[32,8] = add jt ke
+        in (kf,) }
+      length=20
+      linear=(False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False)
+      num_carry=1
+      num_consts=18
+      reverse=False
+      unroll=1
+    ] y x ba z ca bc bb be bd bg bf bi bh s t u v w eh fh fi
+    kg:f32[32,27] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(32, 27)] ca
+    kh:f32[32,35] = concatenate[dimension=1] kg fj
+    ki:f32[32,256] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] kh bl
+    kj:f32[1,256] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 256)] bk
+    kk:f32[32,256] = add ki kj
+    kl:f32[32,256] = pjit[name=softplus jaxpr=softplus] kk
+    km:f32[32,256] = tanh kl
+    kn:f32[32,256] = mul kk km
+    ko:f32[32,256] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] kn bn
+    kp:f32[1,256] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 256)] bm
+    kq:f32[32,256] = add ko kp
+    kr:f32[32,256] = pjit[name=softplus jaxpr=softplus] kq
+    ks:f32[32,256] = tanh kr
+    kt:f32[32,256] = mul kq ks
+    ku:f32[32,256] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] kt bp
+    kv:f32[1,256] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 256)] bo
+    kw:f32[32,256] = add ku kv
+    kx:f32[32,256] = pjit[name=softplus jaxpr=softplus] kw
+    ky:f32[32,256] = tanh kx
+    kz:f32[32,256] = mul kw ky
+    la:f32[32,1] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] kz br
+    lb:f32[1,1] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 1)] bq
+    lc:f32[32,1] = add la lb
+    ld:f32[32] = squeeze[dimensions=(1,)] lc
+    le:f32[32,27] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(32, 27)] ca
+    lf:f32[32,35] = concatenate[dimension=1] le fj
+    lg:f32[32,256] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] lf bt
+    lh:f32[1,256] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 256)] bs
+    li:f32[32,256] = add lg lh
+    lj:f32[32,256] = pjit[name=softplus jaxpr=softplus] li
+    lk:f32[32,256] = tanh lj
+    ll:f32[32,256] = mul li lk
+    lm:f32[32,256] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] ll bv
+    ln:f32[1,256] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 256)] bu
+    lo:f32[32,256] = add lm ln
+    lp:f32[32,256] = pjit[name=softplus jaxpr=softplus] lo
+    lq:f32[32,256] = tanh lp
+    lr:f32[32,256] = mul lo lq
+    ls:f32[32,256] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] lr bx
+    lt:f32[1,256] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 256)] bw
+    lu:f32[32,256] = add ls lt
+    lv:f32[32,256] = pjit[name=softplus jaxpr=softplus] lu
+    lw:f32[32,256] = tanh lv
+    lx:f32[32,256] = mul lu lw
+    ly:f32[32,1] = dot_general[
+      dimension_numbers=(([1], [0]), ([], []))
+      preferred_element_type=float32
+    ] lx bz
+    lz:f32[1,1] = broadcast_in_dim[broadcast_dimensions=(1,) shape=(1, 1)] by
+    ma:f32[32,1] = add ly lz
+    mb:f32[32] = squeeze[dimensions=(1,)] ma
+    mc:f32[32] = min ld mb
+    md:f32[32,8] = pjit[
+      name=clip
+      jaxpr={ lambda ; me:f32[32,8] mf:i32[] mg:i32[]. let
+          mh:f32[] = convert_element_type[new_dtype=float32 weak_type=False] mg
+          mi:f32[32,8] = max mh me
+          mj:f32[] = convert_element_type[new_dtype=float32 weak_type=False] mf
+          mk:f32[32,8] = min mj mi
+        in (mk,) }
+    ] fj 1 -1
+    ml:i32[] = argmax[axes=(0,) index_dtype=int32] mc
+    mm:i32[1] = broadcast_in_dim[broadcast_dimensions=() shape=(1,)] ml
+    mn:i32[1,1] = broadcast_in_dim[broadcast_dimensions=(0,) shape=(1, 1)] mm
+    mo:f32[1,8] = pjit[
+      name=take_along_axis
+      jaxpr={ lambda ; mp:f32[32,8] mq:i32[1,1]. let
+          mr:bool[1,1] = lt mq 0
+          ms:i32[1,1] = add mq 32
+          mt:i32[1,1] = select_n mr mq ms
+          mu:f32[1,8] = gather[
+            dimension_numbers=GatherDimensionNumbers(offset_dims=(1,), collapsed_slice_dims=(0,), start_index_map=(0,))
+            fill_value=nan
+            indices_are_sorted=False
+            mode=GatherScatterMode.FILL_OR_DROP
+            slice_sizes=(1, 8)
+            unique_indices=False
+          ] mp mt
+        in (mu,) }
+    ] md mn
+    mv:f32[8] = squeeze[dimensions=(0,)] mo
+    mw:f32[8] = pjit[
+      name=_normal
+      jaxpr={ lambda ; mx:key<fry>[]. let
+          my:f32[8] = pjit[
+            name=_normal_real
+            jaxpr={ lambda ; mz:key<fry>[]. let
+                na:f32[8] = pjit[
+                  name=_uniform
+                  jaxpr={ lambda ; nb:key<fry>[] nc:f32[] nd:f32[]. let
+                      ne:f32[1] = broadcast_in_dim[
+                        broadcast_dimensions=()
+                        shape=(1,)
+                      ] nc
+                      nf:f32[1] = broadcast_in_dim[
+                        broadcast_dimensions=()
+                        shape=(1,)
+                      ] nd
+                      ng:u32[8] = random_bits[bit_width=32 shape=(8,)] nb
+                      nh:u32[8] = shift_right_logical ng 9
+                      ni:u32[8] = or nh 1065353216
+                      nj:f32[8] = bitcast_convert_type[new_dtype=float32] ni
+                      nk:f32[8] = sub nj 1.0
+                      nl:f32[1] = sub nf ne
+                      nm:f32[8] = mul nk nl
+                      nn:f32[8] = add nm ne
+                      no:f32[8] = max ne nn
+                    in (no,) }
+                ] mz -0.9999999403953552 1.0
+                np:f32[8] = erf_inv na
+                nq:f32[8] = mul 1.4142135381698608 np
+              in (nq,) }
+          ] mx
+        in (my,) }
+    ] dc
+    nr:f32[] = exp -inf
+    ns:f32[] = convert_element_type[new_dtype=float32 weak_type=False] nr
+    nt:f32[8] = mul mw ns
+    nu:f32[8] = mul nt 0.10000000149011612
+    nv:f32[8] = add mv nu
+  in (nv,) }
