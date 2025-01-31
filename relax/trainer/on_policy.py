@@ -170,9 +170,6 @@ class OnPolicyTrainer:
         self.sample_log_n_episode = sample_log_n_episode
         self.save_policy_every = save_policy_every
         self.hparams = hparams
-        # TODO: make EpisodeLog and Experience configurable
-        # TODO: re-add done_info_keys support
-        # TODO: re-add evaluation support
 
         assert total_step % batch_size == 0
         self.total_iter = total_step // batch_size

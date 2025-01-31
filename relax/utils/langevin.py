@@ -31,6 +31,5 @@ class LangevinDynamics:
             x = jnp.clip(x, a_min=-1.0, a_max=1.0)
             return x, None
 
-        # TODO: need of clip or squash?
         x, _ = jax.lax.scan(body_fn, x, (delta, noise))
         return x

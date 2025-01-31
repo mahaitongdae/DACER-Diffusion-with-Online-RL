@@ -59,9 +59,6 @@ class OffPolicyTrainer:
         self.save_policy_every = save_policy_every
         self.hparams = hparams
         self.warmup_with = warmup_with
-        # TODO: make EpisodeLog and Experience configurable
-        # TODO: re-add done_info_keys support
-        # TODO: re-add evaluation support
 
         if isinstance(self.env.unwrapped, VectorEnv):
             self.is_vec = True

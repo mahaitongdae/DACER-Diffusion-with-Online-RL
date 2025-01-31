@@ -8,21 +8,17 @@ import yaml
 import jax, jax.numpy as jnp
 
 from relax.algorithm.sac import SAC
-from relax.algorithm.dsact import DSACT
 from relax.algorithm.dacer import DACER
-from relax.algorithm.dacer_doubleq import DACERDoubleQ
 from relax.algorithm.qsm import QSM
 from relax.algorithm.dipo import DIPO
 from relax.algorithm.qvpo import QVPO
-from relax.algorithm.diffusion_v2 import Diffv2
+from relax.algorithm.sdac import SDAC
 from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
-from relax.network.dsact import create_dsact_net
 from relax.network.dacer import create_dacer_net
-from relax.network.dacer_doubleq import create_dacer_doubleq_net
 from relax.network.qsm import create_qsm_net
 from relax.network.dipo import create_dipo_net
-from relax.network.diffv2 import create_diffv2_net
+from relax.network.sdac import create_sdac_net
 from relax.network.qvpo import create_qvpo_net
 from relax.trainer.off_policy import OffPolicyTrainer
 from relax.env import create_env, create_vector_env
@@ -33,8 +29,8 @@ from relax.utils.log_diff import log_git_details
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alg", type=str, default="diffv2")
-    parser.add_argument("--env", type=str, default="HalfCheetah-v4")
+    parser.add_argument("--alg", type=str, default="sdac")
+    parser.add_argument("--env", type=str, default="Ant-v4")
     parser.add_argument("--suffix", type=str, default="test_use_atp1")
     parser.add_argument("--num_vec_envs", type=int, default=5)
     parser.add_argument("--hidden_num", type=int, default=3)
@@ -52,7 +48,6 @@ if __name__ == "__main__":
     parser.add_argument("--noise_scale", type=float, default=0.1)
     parser.add_argument("--target_entropy_scale", type=float, default=1.5)
     parser.add_argument("--debug", action='store_true', default=False)
-    parser.add_argument("--cluster", default=False, action="store_true")
     parser.add_argument("--use_ema_policy", default=True, action="store_true")
     args = parser.parse_args()
 
@@ -82,15 +77,15 @@ if __name__ == "__main__":
 
     gelu = partial(jax.nn.gelu, approximate=False)
 
-    if args.alg == 'diffv2':
+    if args.alg == 'sdac':
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
-        agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
+        agent, params = create_sdac_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
                                           num_timesteps=args.diffusion_steps, 
                                           num_particles=args.num_particles, 
                                           noise_scale=args.noise_scale,
                                           target_entropy_scale=args.target_entropy_scale)
-        algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, 
+        algorithm = SDAC(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, 
                            delay_alpha_update=args.delay_alpha_update,
                              lr_schedule_end=args.lr_schedule_end,
                              use_ema=args.use_ema_policy)
@@ -139,9 +134,6 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid algorithm {args.alg}!")
 
-    if args.cluster:
-        PROJECT_ROOT = Path('/n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs')
-
     exp_dir = PROJECT_ROOT / "logs" / args.env / (args.alg + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
     trainer = OffPolicyTrainer(
         env=env,
@@ -157,7 +149,7 @@ if __name__ == "__main__":
     )
 
     trainer.setup(Experience.create_example(obs_dim, act_dim, trainer.batch_size))
-    log_git_details(log_file=os.path.join(exp_dir, 'dacer.diff'))
+    log_git_details(log_file=os.path.join(exp_dir, 'git.diff'))
     
     # Save the arguments to a YAML file
     args_dict = vars(args)

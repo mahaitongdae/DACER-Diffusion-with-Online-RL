@@ -1,20 +1,14 @@
-# [NeurIPS 2024] DACER
+## ICML 2025 submission
 
-This is the official repository of
+This is the suppliment material for ICML 2025 submission 
 
-**Diffusion Actor-Critic with Entropy Regulator**,
-
-<p align="left">
-<a href='https://arxiv.org/abs/2405.15177' style='padding-left: 0.5rem;'>
-    <img src='https://img.shields.io/badge/arXiv-PDF-red?style=flat&logo=arXiv&logoColor=wihte' alt='arXiv PDF'>
-</a>
-</p>
+**Soft Diffusion Actor-Critic: Efficient Online Reinforcement Learning for Diffusion Policies**
 
 ## Installation
 
 ```bash
 # Create environemnt
-conda create -n relax python=3.10 numpy tqdm tensorboardX matplotlib scikit-learn black snakeviz ipykernel setproctitle numba
+conda create -n relax python=3.9 numpy tqdm tensorboardX matplotlib scikit-learn black snakeviz ipykernel setproctitle numba
 conda activate relax
 
 # One of: Install jax WITH CUDA 
@@ -23,13 +17,6 @@ pip install --upgrade "jax[cuda12]==0.4.27" -f https://storage.googleapis.com/ja
 # Install package
 pip install -r requirements.txt
 pip install -e .
-
-# Install CUDA Forward compatibility packages
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
-sudo dpkg -i cuda-keyring_1.0-1_all.deb
-sudo apt update
-sudo apt install cuda-compat-12-6
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda-12.6/compat" # Add to ~/.bashrc
 ```
 
 
@@ -37,37 +24,30 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda-12.6/compat" # Add to ~
 ## Run
 ```bash
 # Run one experiment
-XLA_FLAGS='--xla_gpu_deterministic_ops=true' CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_MEM_FRACTION=.1 python scripts/train_mujoco.py --alg dacer --seed 100
+XLA_FLAGS='--xla_gpu_deterministic_ops=true' CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_MEM_FRACTION=.1 python scripts/train_mujoco.py --alg sdac --seed 100
 ```
 
-```bash
-# Run multiple experiments
-chmod +x run_experiments.sh
-./run_experiments.sh "0 1 2"
+## Visualize results
+```python
+from relax.utils.inspect_results import load_results, plot_mean
+
+env_name = 'Ant-v4'
+
+patterns_dict = {
+        'sdac': r'sdac.*' # regex expression of saved folders
+    }
+
+for key, value in patterns_dict.items():
+    print(key)
+    _ = load_best_results(value, env_name, show_df=False)
+
+plot_mean(patterns_dict, env_name)
 ```
 
-## To Do
-
-The code is under cleaning and will be released gradually.
-
-- [ ] improve docs
-- [x] more diffusion-based code [DIPO, QSM. QVPO(other branch)]
-- [x] training code
+We also provide sample logs that can be visualized via directly running the commands.
 
 
-## Citation
 
-If you find this repo useful, please consider giving us a star 🌟 and citing our related paper.
+## Disclaimer
+This code is provided specifically for submission purposes. It is not intended for other purposes. 
 
-```bibtex
-@article{wang2024diffusion,
-  title={Diffusion Actor-Critic with Entropy Regulator},
-  author={Wang, Yinuo and Wang, Likun and Jiang, Yuxuan and Zou, Wenjun and Liu, Tong and Song, Xujie and Wang, Wenxuan and Xiao, Liming and Wu, Jiang and Duan, Jingliang and Shengbo Eben Li},
-  journal={arXiv preprint arXiv:2405.15177},
-  year={2024}
-}
-```
-
-## Tips
-1. Search "other envs" in the code to find the parameters for other mujoco environments. The existing parameters in the code are used for Humanoid-v3 and HalfCheetah-v3.
-2. The version of MuJoCo is mujoco210.

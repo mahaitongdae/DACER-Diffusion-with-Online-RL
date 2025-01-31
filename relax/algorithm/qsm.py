@@ -77,7 +77,6 @@ class QSM(Algorithm):
                 q1, q1_score = self.agent.get_q_score_from_gradient(q1_params, obs, action)
                 q2, q2_score = self.agent.get_q_score_from_gradient(q2_params, obs, action)
                 q_score = self.agent.q_score(q_score_params, obs, action)
-                # TODO: how to handle q1 and q2 here?
                 q_minimum_score = jnp.where(q1.reshape(-1, 1) < q2.reshape(-1, 1), q1_score, q2_score)
                 q_score_loss = jnp.mean((q_score - q_minimum_score) ** 2)
                 return q_score_loss, (q1, q2)

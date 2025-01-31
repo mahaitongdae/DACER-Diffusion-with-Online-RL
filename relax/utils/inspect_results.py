@@ -52,7 +52,7 @@ def plot_mean(patterns_dict: Dict, env_name, path=None, fig_name = None,
     
 
 
-def load_best_results(pattern, env_name, show_df=False,
+def load_results(pattern, env_name, show_df=False,
               max_steps=None, display_digits=0, path=None):
     if path is None:
         package_path = Path(relax.__file__)
@@ -60,10 +60,6 @@ def load_best_results(pattern, env_name, show_df=False,
     else:
         package_path = Path(path)
         logdir = package_path / env_name
-    
-    # pattern = r".*diffv2.*noise_scale_0\.0\d$"
-    # pattern = r".*diffv2.*noise_scale_0\.09"
-    # pattern = r".*qsm.*01-07.*qsm_lr_schedule$"
     
     matching_dir = [s for s in logdir.iterdir() if re.match(pattern, str(s))]
     dfs = []
@@ -74,27 +70,9 @@ def load_best_results(pattern, env_name, show_df=False,
             df = df[df['step'] < max_steps]
         sliced_df = df.loc[df['avg_ret'].idxmax()]
         sliced_df.loc['seed'] = str(dir).split('_s')[1].split('_')[0]
-        # if 'lr_end' in dir:
-        #     sliced_df.loc['lr_end'] = dir.split('lr_end_')[1]
         dfs.append(sliced_df)
     total_df = pd.concat(dfs, ignore_index=True, axis=1).T
     if show_df:
         print(total_df.to_markdown())
     print(f"${total_df['avg_ret'].mean():.{display_digits}f} \pm {total_df['avg_ret'].std():.{display_digits}f}$")
     return total_df
-
-if __name__ == "__main__":
-    # pattern = r".*diffv2.*01-07.*diffv2_ema$"
-    # load_best_results(pattern)
-    # patterns_dict = {
-    #                 #  'ema': r".*diffv2.*01-07.*diffv2_ema$",
-    #                  'sampling_ema': r".*diffv2.*01-07.*diffv2_sampling_with_ema$",
-    #                 #  'lr_schedule': r".*diffv2.*01-07.*diffv2_lr_schedule$", 
-    #                 #  'qsm_lr': r".*qsm.*01-07.*qsm_lr_schedule$",
-    #                  'qsm': r".*qsm.*01-07.*atp1$"}
-    patterns_dict = {
-        'sampling_ema': r".*diffv2.*01.*diffv2_sampling_with_ema$",
-        # 'qsm': r".*qsm.*01.*atp1$",
-        # 'sac': r".*sac.*01.*atp1$"
-    }
-    plot_mean(patterns_dict, 'Ant-v4')

@@ -57,8 +57,8 @@ class BetaScheduleCoefficients:
     def vp_beta_schedule(timesteps: int):
         t = np.arange(1, timesteps + 1)
         T = timesteps
-        b_max = 10.
-        b_min = 0.1
+        b_max = 50.
+        b_min = 1e-6
         alpha = np.exp(-b_min / T - 0.5 * (b_max - b_min) * (2 * t - 1) / T ** 2)
         betas = 1 - alpha
         return betas
@@ -72,10 +72,20 @@ class BetaScheduleCoefficients:
         betas = 1 - alphas_cumprod[1:] / alphas_cumprod[:-1]
         betas = np.clip(betas, 0, 0.999)
         return betas
+    
+    @staticmethod
+    def linear_beta_schedule(timesteps: int):
+        start = 0.9999
+        end = 0.01
+        alpha = np.linspace(start, end, timesteps)
+        betas = 1 - alpha
+        betas = np.clip(betas, 0, 0.999)
+        return betas
 
 @dataclass(frozen=True)
 class GaussianDiffusion:
     num_timesteps: int
+    noise_schedule: int
 
     def beta_schedule(self):
         with jax.ensure_compile_time_eval():

@@ -36,7 +36,7 @@ class WithSquashedGaussianPolicy:
 @dataclass
 class WithSquashedDeterministicPolicy:
     policy: Callable[[hk.Params, jax.Array], jax.Array]
-    preprocess: Callable[[jax.Array], jax.Array] # TODO: more general?
+    preprocess: Callable[[jax.Array], jax.Array] 
     exploration_noise: float
 
     def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
