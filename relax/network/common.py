@@ -9,25 +9,25 @@ from numpyro.distributions import Normal
 
 @dataclass
 class WithSquashedGaussianPolicy:
-    policy: Callable[[hk.Params, jax.Array], Tuple[jax.Array, jax.Array]]
+    policy: Callable[[dict, jax.Array], Tuple[jax.Array, jax.Array]]
 
     def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
         """for data collection"""
-        mean, std = self.policy(policy_params, obs)
+        mean, std = self.policy({'params': policy_params}, obs)
         z = jax.random.normal(key, mean.shape)
         act = mean + std * z
         return jnp.tanh(act)
 
     def get_deterministic_action(self, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
         """for evaluation"""
-        mean, _ = self.policy(policy_params, obs)
+        mean, _ = self.policy({'params': policy_params}, obs)
         return jnp.tanh(mean)
 
     def evaluate(
         self, key: jax.Array, policy_params: hk.Params, obs: jax.Array
     ) -> Tuple[jax.Array, jax.Array]:
         """for algorithm update"""
-        mean, std = self.policy(policy_params, obs)
+        mean, std = self.policy({'params': policy_params}, obs)
         z = jax.random.normal(key, mean.shape)
         act = mean + std * z
         logp = Normal(mean, std).log_prob(act) # - 2 * (math.log(2) - act - jax.nn.softplus(-2 * act))
@@ -36,7 +36,7 @@ class WithSquashedGaussianPolicy:
 @dataclass
 class WithSquashedDeterministicPolicy:
     policy: Callable[[hk.Params, jax.Array], jax.Array]
-    preprocess: Callable[[jax.Array], jax.Array] 
+    preprocess: Callable[[jax.Array], jax.Array]
     exploration_noise: float
 
     def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:

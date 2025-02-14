@@ -29,7 +29,7 @@ from relax.utils.log_diff import log_git_details
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alg", type=str, default="sdac")
+    parser.add_argument("--alg", type=str, default="sac")
     parser.add_argument("--env", type=str, default="Ant-v4")
     parser.add_argument("--suffix", type=str, default="test_use_atp1")
     parser.add_argument("--num_vec_envs", type=int, default=5)
@@ -81,11 +81,11 @@ if __name__ == "__main__":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_sdac_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
-                                          num_timesteps=args.diffusion_steps, 
-                                          num_particles=args.num_particles, 
+                                          num_timesteps=args.diffusion_steps,
+                                          num_particles=args.num_particles,
                                           noise_scale=args.noise_scale,
                                           target_entropy_scale=args.target_entropy_scale)
-        algorithm = SDAC(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, 
+        algorithm = SDAC(agent, params, lr=args.lr, alpha_lr=args.alpha_lr,
                            delay_alpha_update=args.delay_alpha_update,
                              lr_schedule_end=args.lr_schedule_end,
                              use_ema=args.use_ema_policy)
@@ -95,20 +95,12 @@ if __name__ == "__main__":
     elif args.alg == "sac":
         agent, params = create_sac_net(init_network_key, obs_dim, act_dim, hidden_sizes, gelu)
         algorithm = SAC(agent, params, lr=args.lr)
-    elif args.alg == "dsact":
-        agent, params = create_dsact_net(init_network_key, obs_dim, act_dim, hidden_sizes, gelu)
-        algorithm = DSACT(agent, params, lr=args.lr)
     elif args.alg == "dacer":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
-        agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish, 
+        agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
                                          num_timesteps=args.diffusion_steps)
         algorithm = DACER(agent, params, lr=args.lr, lr_schedule_end=args.lr_schedule_end)
-    elif args.alg == "dacer_doubleq":
-        def mish(x: jax.Array):
-            return x * jnp.tanh(jax.nn.softplus(x))
-        agent, params = create_dacer_doubleq_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish, num_timesteps=args.diffusion_steps)
-        algorithm = DACERDoubleQ(agent, params, lr=args.lr)
     elif args.alg == "dipo":
         diffusion_buffer = TreeBuffer.from_example(
             ObsActionPair.create_example(obs_dim, act_dim),
@@ -150,7 +142,7 @@ if __name__ == "__main__":
 
     trainer.setup(Experience.create_example(obs_dim, act_dim, trainer.batch_size))
     log_git_details(log_file=os.path.join(exp_dir, 'git.diff'))
-    
+
     # Save the arguments to a YAML file
     args_dict = vars(args)
     with open(os.path.join(exp_dir, 'config.yaml'), 'w') as yaml_file:

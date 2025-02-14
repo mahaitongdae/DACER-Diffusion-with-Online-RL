@@ -101,8 +101,10 @@ def create_sdac_net(
     target_entropy_scale = 0.9,
     ) -> Tuple[SDACNet, Diffv2Params]:
     # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
-    q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
-    policy = hk.without_apply_rng(hk.transform(lambda obs, act, t: DACERPolicyNet(diffusion_hidden_sizes, activation)(obs, act, t)))
+    # q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
+    # policy = hk.without_apply_rng(hk.transform(lambda obs, act, t: DACERPolicyNet(diffusion_hidden_sizes, activation)(obs, act, t)))
+    q = QNet(hidden_sizes, activation)
+    policy = DACERPolicyNet(diffusion_hidden_sizes, activation)
 
     @jax.jit
     def init(key, obs, act):
@@ -120,7 +122,7 @@ def create_sdac_net(
     sample_act = jnp.zeros((1, act_dim))
     params = init(key, sample_obs, sample_act)
 
-    net = SDACNet(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, 
+    net = SDACNet(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim,
                     target_entropy=-act_dim*target_entropy_scale, num_particles=num_particles, noise_scale=noise_scale,
                     noise_schedule='linear')
     return net, params

@@ -55,14 +55,14 @@ class SAC(Algorithm):
 
             # compute target q
             next_action, next_logp = self.agent.evaluate(next_eval_key, policy_params, next_obs)
-            q1_target = self.agent.q(target_q1_params, next_obs, next_action)
-            q2_target = self.agent.q(target_q2_params, next_obs, next_action)
+            q1_target = self.agent.q({'params': target_q1_params}, next_obs, next_action)
+            q2_target = self.agent.q({'params': target_q2_params}, next_obs, next_action)
             q_target = jnp.minimum(q1_target, q2_target) - jnp.exp(log_alpha) * next_logp
             q_backup = reward + (1 - done) * self.gamma * q_target
 
             # update q
-            def q_loss_fn(q_params: hk.Params) -> jax.Array:
-                q = self.agent.q(q_params, obs, action)
+            def q_loss_fn(q_params: dict) -> jax.Array:
+                q = self.agent.q({'params': q_params}, obs, action)
                 q_loss = jnp.mean((q - q_backup) ** 2)
                 return q_loss
 
@@ -74,10 +74,10 @@ class SAC(Algorithm):
             q2_params = optax.apply_updates(q2_params, q2_update)
 
             # update policy
-            def policy_loss_fn(policy_params: hk.Params) -> jax.Array:
+            def policy_loss_fn(policy_params: dict) -> jax.Array:
                 new_action, new_logp = self.agent.evaluate(new_eval_key, policy_params, obs)
-                q1 = self.agent.q(q1_params, obs, new_action)
-                q2 = self.agent.q(q2_params, obs, new_action)
+                q1 = self.agent.q({'params': q1_params}, obs, new_action)
+                q2 = self.agent.q({'params': q2_params}, obs, new_action)
                 q = jnp.minimum(q1, q2)
                 policy_loss = jnp.mean(jnp.exp(log_alpha) * new_logp - q)
                 return policy_loss, (q1, q2, new_logp)
