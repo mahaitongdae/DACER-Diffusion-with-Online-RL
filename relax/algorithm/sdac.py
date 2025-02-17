@@ -96,25 +96,25 @@ class SDAC(Algorithm):
             reward *= self.reward_scale
 
             def get_min_q(s, a):
-                q1 = self.agent.q(q1_params, s, a)
-                q2 = self.agent.q(q2_params, s, a)
+                q1 = self.agent.q({'params': q1_params}, s, a)
+                q2 = self.agent.q({'params': q2_params}, s, a)
                 q = jnp.minimum(q1, q2)
                 return q
 
-            def get_min_taret_q(s, a):
-                q1 = self.agent.q(target_q1_params, s, a)
-                q2 = self.agent.q(target_q2_params, s, a)
-                q = jnp.minimum(q1, q2)
-                return q
+            # def get_min_taret_q(s, a):
+            #     q1 = self.agent.q(target_q1_params, s, a)
+            #     q2 = self.agent.q(target_q2_params, s, a)
+            #     q = jnp.minimum(q1, q2)
+            #     return q
 
             next_action = self.agent.get_action(next_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
-            q1_target = self.agent.q(target_q1_params, next_obs, next_action)
-            q2_target = self.agent.q(target_q2_params, next_obs, next_action)
+            q1_target = self.agent.q({'params': target_q1_params}, next_obs, next_action)
+            q2_target = self.agent.q({'params': target_q2_params}, next_obs, next_action)
             q_target = jnp.minimum(q1_target, q2_target)  # - jnp.exp(log_alpha) * next_logp
             q_backup = reward + (1 - done) * self.gamma * q_target
 
             def q_loss_fn(q_params: hk.Params) -> jax.Array:
-                q = self.agent.q(q_params, obs, action)
+                q = self.agent.q({'params': q_params}, obs, action)
                 q_loss = jnp.mean((q - q_backup) ** 2)
                 return q_loss, q
 
@@ -134,7 +134,7 @@ class SDAC(Algorithm):
                 q_weights = jnp.exp(scaled_q)
                 # q_weights = q_weights
                 def denoiser(t, x):
-                    return self.agent.policy(policy_params, next_obs, x, t)
+                    return self.agent.policy({'params': policy_params}, next_obs, x, t)
                 t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
                 loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                                                             jax.lax.stop_gradient(next_action))

@@ -5,25 +5,25 @@ import jax, jax.numpy as jnp
 import haiku as hk
 import math
 
-from relax.network.blocks import Activation, DistributionalQNet2, DACERPolicyNet, QNet
+from relax.network.blocks_flax import Activation, DACERPolicyNet, QNet
 from relax.network.common import WithSquashedGaussianPolicy
 from relax.utils.diffusion import GaussianDiffusion
 from relax.utils.jax_utils import random_key_from_data
 
 class Diffv2Params(NamedTuple):
-    q1: hk.Params
-    q2: hk.Params
-    target_q1: hk.Params
-    target_q2: hk.Params
-    policy: hk.Params
-    target_poicy: hk.Params
+    q1: dict
+    q2: dict
+    target_q1: dict
+    target_q2: dict
+    policy: dict
+    target_poicy: dict
     log_alpha: jax.Array
 
 
 @dataclass
 class SDACNet:
-    q: Callable[[hk.Params, jax.Array, jax.Array], jax.Array]
-    policy: Callable[[hk.Params, jax.Array, jax.Array, jax.Array], jax.Array]
+    q: Callable[[dict, jax.Array, jax.Array], jax.Array]
+    policy: Callable[[dict, jax.Array, jax.Array, jax.Array], jax.Array]
     num_timesteps: int
     act_dim: int
     num_particles: int
@@ -35,16 +35,16 @@ class SDACNet:
     def diffusion(self) -> GaussianDiffusion:
         return GaussianDiffusion(self.num_timesteps, self.noise_schedule)
 
-    def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
+    def get_action(self, key: jax.Array, policy_params: dict, obs: jax.Array) -> jax.Array:
         policy_params, log_alpha, q1_params, q2_params = policy_params
 
         def model_fn(t, x):
-            return self.policy(policy_params, obs, x, t)
+            return self.policy({'params': policy_params}, obs, x, t)
 
         def sample(key: jax.Array) -> Union[jax.Array, jax.Array]:
             act = self.diffusion.p_sample(key, model_fn, (*obs.shape[:-1], self.act_dim))
-            q1 = self.q(q1_params, obs, act)
-            q2 = self.q(q2_params, obs, act)
+            q1 = self.q({'params': q1_params}, obs, act)
+            q2 = self.q({'params': q2_params}, obs, act)
             q = jnp.minimum(q1, q2)
             return act.clip(-1, 1), q
 
@@ -59,7 +59,7 @@ class SDACNet:
         act = act + jax.random.normal(noise_key, act.shape) * jnp.exp(log_alpha) * self.noise_scale
         return act
 
-    def get_batch_actions(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array, q_func: Callable) -> jax.Array:
+    def get_batch_actions(self, key: jax.Array, policy_params: dict, obs: jax.Array, q_func: Callable) -> jax.Array:
         batch_flatten_obs = obs.repeat(self.num_particles, axis=0)
         batch_flatten_actions = self.get_action(key, policy_params, batch_flatten_obs)
         batch_q = q_func(batch_flatten_obs, batch_flatten_actions).reshape(-1, self.num_particles)
@@ -72,7 +72,7 @@ class SDACNet:
 
 
 
-    def get_deterministic_action(self, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
+    def get_deterministic_action(self, policy_params: dict, obs: jax.Array) -> jax.Array:
         key = random_key_from_data(obs)
         policy_params, log_alpha, q1_params, q2_params = policy_params
         log_alpha = -jnp.inf
@@ -80,7 +80,7 @@ class SDACNet:
         return self.get_action(key, policy_params, obs)
 
     def q_evaluate(
-        self, key: jax.Array, q_params: hk.Params, obs: jax.Array, act: jax.Array
+        self, key: jax.Array, q_params: dict, obs: jax.Array, act: jax.Array
     ) -> Tuple[jax.Array, jax.Array, jax.Array]:
         q_mean, q_std = self.q(q_params, obs, act)
         z = jax.random.normal(key, q_mean.shape)
@@ -100,20 +100,17 @@ def create_sdac_net(
     noise_scale: float = 0.05,
     target_entropy_scale = 0.9,
     ) -> Tuple[SDACNet, Diffv2Params]:
-    # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
-    # q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
-    # policy = hk.without_apply_rng(hk.transform(lambda obs, act, t: DACERPolicyNet(diffusion_hidden_sizes, activation)(obs, act, t)))
     q = QNet(hidden_sizes, activation)
     policy = DACERPolicyNet(diffusion_hidden_sizes, activation)
 
     @jax.jit
     def init(key, obs, act):
         q1_key, q2_key, policy_key = jax.random.split(key, 3)
-        q1_params = q.init(q1_key, obs, act)
-        q2_params = q.init(q2_key, obs, act)
+        q1_params = q.init(q1_key, obs, act)['params']
+        q2_params = q.init(q2_key, obs, act)['params']
         target_q1_params = q1_params
         target_q2_params = q2_params
-        policy_params = policy.init(policy_key, obs, act, 0)
+        policy_params = policy.init(policy_key, obs, act, 0)['params']
         target_policy_params = policy_params
         log_alpha = jnp.array(math.log(5), dtype=jnp.float32) # math.log(3) or math.log(5) choose one
         return Diffv2Params(q1_params, q2_params, target_q1_params, target_q2_params, policy_params, target_policy_params, log_alpha)

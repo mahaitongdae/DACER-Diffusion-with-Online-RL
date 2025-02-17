@@ -23,10 +23,12 @@ class ValueNet(nn.Module):
     output_activation: Activation = Identity
     name: str = None
 
+    @nn.compact
     def __call__(self, obs: jax.Array) -> jax.Array:
         return mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(obs)
 
 
+@dataclass
 class QNet(nn.Module):
     hidden_sizes: Sequence[int]
     activation: Activation
@@ -37,6 +39,42 @@ class QNet(nn.Module):
     def __call__(self, obs: jax.Array, act: jax.Array) -> jax.Array:
         input = jnp.concatenate((obs, act), axis=-1)
         return mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(input)
+    
+@dataclass
+class ReprQNet(nn.Module):
+    hidden_sizes: Sequence[int]
+    activation: Activation
+    output_activation: Activation = Identity
+    name: str = None
+
+    @nn.compact
+    def __call__(self, repr: jax.Array) -> jax.Array:
+        return mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(repr)
+    
+@dataclass
+class PhiNetMLP(nn.Module):
+    hidden_sizes: Sequence[int]
+    repr_dim: int
+    activation: Activation
+    output_activation: Activation = Identity
+    name: str = None
+
+    @nn.compact
+    def __call__(self, obs: jax.Array, act: jax.Array) -> jax.Array:
+        input = jnp.concatenate((obs, act), axis=-1)
+        return mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(input)
+    
+@dataclass
+class MuNetMLP(nn.Module):
+    hidden_sizes: Sequence[int]
+    repr_dim: int
+    activation: Activation
+    output_activation: Activation = Identity
+    name: str = None
+
+    @nn.compact
+    def __call__(self, obs: jax.Array) -> jax.Array:
+        return mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(obs)
 
 
 @dataclass
@@ -48,6 +86,7 @@ class DistributionalQNet(nn.Module):
     max_log_std: float = 4.0
     name: str = None
 
+    @nn.compact
     def __call__(self, obs: jax.Array, act: jax.Array) -> Tuple[jax.Array, jax.Array]:
         input = jnp.concatenate((obs, act), axis=-1)
         value_mean = mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(input)
@@ -180,6 +219,7 @@ class DACERPolicyNet(nn.Module):
     time_dim: int = 16
     name: str = None
 
+    @nn.compact
     def __call__(self, obs: jax.Array, act: jax.Array, t: jax.Array) -> jax.Array:
         act_dim = act.shape[-1]
         te = scaled_sinusoidal_encoding(t, dim=self.time_dim, batch_shape=obs.shape[:-1])

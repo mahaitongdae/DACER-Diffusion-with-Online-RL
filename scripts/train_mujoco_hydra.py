@@ -1,9 +1,11 @@
-import argparse
 import os.path
 from pathlib import Path
-import time
 from functools import partial
 import yaml
+import hydra
+from omegaconf import DictConfig, OmegaConf
+from types import SimpleNamespace
+from hydra.core.hydra_config import HydraConfig
 
 import jax, jax.numpy as jnp
 
@@ -29,35 +31,9 @@ from relax.utils.fs import PROJECT_ROOT
 from relax.utils.random_utils import seeding
 from relax.utils.log_diff import log_git_details
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--alg", type=str, default="ctrlsac")
-    parser.add_argument("--env", type=str, default="HalfCheetah-v4")
-    parser.add_argument("--suffix", type=str, default="test_use_atp1")
-    parser.add_argument("--num_vec_envs", type=int, default=5)
-    parser.add_argument("--hidden_num", type=int, default=3)
-    parser.add_argument("--hidden_dim", type=int, default=1024)
-    parser.add_argument("--diffusion_steps", type=int, default=20)
-    parser.add_argument("--diffusion_hidden_dim", type=int, default=256)
-    parser.add_argument("--start_step", type=int, default=int(3e4)) # other envs 3e4
-    parser.add_argument("--total_step", type=int, default=int(1e6))
-    parser.add_argument("--lr", type=float, default=3e-4)
-    parser.add_argument("--lr_schedule_end", type=float, default=3e-5)
-    parser.add_argument("--alpha_lr", type=float, default=7e-3)
-    parser.add_argument("--delay_alpha_update", type=float, default=250)
-    parser.add_argument("--seed", type=int, default=100)
-    parser.add_argument("--num_particles", type=int, default=32)
-    parser.add_argument("--noise_scale", type=float, default=0.1)
-    parser.add_argument("--target_entropy_scale", type=float, default=1.5)
-    parser.add_argument("--debug", action='store_true', default=False)
-    parser.add_argument("--use_ema_policy", default=True, action="store_true")
-
-    ## repr
-    parser.add_argument("--repr_dim", default=2048, type=int)
-    parser.add_argument("--w_hidden_num", default=2, type=int)
-    parser.add_argument("--w_hidden_activation", default=1, type=int)
-    args = parser.parse_args()
-
+@hydra.main(version_base=None, config_path='../config', config_name='ctrlsac')
+def run(cfg: DictConfig):
+    args = SimpleNamespace(**cfg)
     if args.debug:
         from jax import config
         config.update("jax_disable_jit", True)
@@ -139,7 +115,7 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid algorithm {args.alg}!")
 
-    exp_dir = PROJECT_ROOT / "logs" / args.env / (args.alg + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
+    exp_dir = Path(HydraConfig.get().run.dir) # PROJECT_ROOT / "logs" / args.env / (args.alg + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
     trainer = OffPolicyTrainer(
         env=env,
         algorithm=algorithm,
@@ -161,3 +137,9 @@ if __name__ == "__main__":
     with open(os.path.join(exp_dir, 'config.yaml'), 'w') as yaml_file:
         yaml.dump(args_dict, yaml_file)
     trainer.run(train_key)
+
+
+if __name__ == "__main__":
+    run()
+
+    

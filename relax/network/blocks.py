@@ -26,7 +26,6 @@ class ValueNet(hk.Module):
 
 
 @dataclass
-@fix_repr
 class QNet(hk.Module):
     hidden_sizes: Sequence[int]
     activation: Activation

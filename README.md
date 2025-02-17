@@ -4,6 +4,32 @@ This is the suppliment material for ICML 2025 submission
 
 **Soft Diffusion Actor-Critic: Efficient Online Reinforcement Learning for Diffusion Policies**
 
+## Update notes
+
+02-17: Update haiku implementation to flax.
+
+    [ ] Finish all the baselines
+
+02-17: Update argparse to hydra to better manage hyper parameters.
+
+- The algorithm config file is stored separately for each algorithm and is orgaizned in `./config`.
+
+    Hydra example:
+    - running specific config 
+
+        ```python
+        python ./scripts/train_mujoco_hydra.py --config-name sac
+        ```
+    - override specific config
+        ```python 
+        python ./scripts/train_mujoco_hydra.py --config-name sac suffix=override_test
+        ```
+    - add new config
+        ```python
+        python ./scripts/train_mujoco_hydra.py --config-name sac +new_config=new_config
+        ```
+
+
 ## Installation
 
 ```bash

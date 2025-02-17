@@ -1,0 +1,27 @@
+alg: ctrlsac
+alpha_lr: 0.007
+debug: false
+delay_alpha_update: 250
+diffusion_hidden_dim: 256
+diffusion_steps: 20
+env: HalfCheetah-v4
+hidden_dim: 1024
+hidden_num: 3
+lr: 0.0003
+lr_schedule_end: 3.0e-05
+noise_scale: 0.1
+num_particles: 32
+num_vec_envs: 5
+repr_dim: 2048
+seed: 100
+start_step: 30000
+suffix: test_use_atp1
+target_entropy_scale: 1.5
+total_step: 1000000
+use_ema_policy: true
+w_hidden_activation: 1
+w_hidden_num: 2
+
+hydra:
+  run:
+    dir: ./logs/${env}/${alg}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix}
