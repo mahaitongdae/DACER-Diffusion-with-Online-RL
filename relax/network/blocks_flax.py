@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Callable, Optional, Sequence, Tuple, Union
 
+import flax.linen
+import flax.linen
 import jax, jax.numpy as jnp
 import haiku as hk
 from haiku.initializers import Constant
@@ -62,7 +64,9 @@ class PhiNetMLP(nn.Module):
     @nn.compact
     def __call__(self, obs: jax.Array, act: jax.Array) -> jax.Array:
         input = jnp.concatenate((obs, act), axis=-1)
-        return mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(input)
+        input = flax.linen.LayerNorm()(input)
+        out = mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(input)
+        return out # / jnp.sqrt(self.repr_dim)
     
 @dataclass
 class MuNetMLP(nn.Module):
@@ -74,8 +78,9 @@ class MuNetMLP(nn.Module):
 
     @nn.compact
     def __call__(self, obs: jax.Array) -> jax.Array:
-        return mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(obs)
-
+        obs = flax.linen.LayerNorm()(obs)
+        out = mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(obs)
+        return out # / jnp.sqrt(self.repr_dim)
 
 @dataclass
 class DistributionalQNet(nn.Module):
@@ -236,6 +241,22 @@ def mlp(hidden_sizes: Sequence[int],
         *,
         squeeze_output: bool = False) -> Callable[[jax.Array], jax.Array]:
     layers = []
+    for hidden_size in hidden_sizes:
+        layers += [nn.Dense(hidden_size), activation]
+    layers += [nn.Dense(output_size), output_activation]
+    if squeeze_output:
+        layers.append(partial(jnp.squeeze, axis=-1))
+    return flax.linen.Sequential(layers)
+
+def mlp_with_layer_norm(hidden_sizes: Sequence[int],
+        output_size: int,
+        activation: Activation,
+        output_activation: Activation,
+        *,
+        squeeze_output: bool = False) -> Callable[[jax.Array], jax.Array]:
+    hidden_sizes = list(hidden_sizes)
+    first_hidden = hidden_sizes.pop(0)
+    layers = [nn.Dense(first_hidden), nn.LayerNorm()]
     for hidden_size in hidden_sizes:
         layers += [nn.Dense(hidden_size), activation]
     layers += [nn.Dense(output_size), output_activation]

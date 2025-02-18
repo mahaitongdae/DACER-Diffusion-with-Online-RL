@@ -22,10 +22,12 @@ class CTRLSACOptStates(NamedTuple):
 class CTRLSACTrainState(NamedTuple):
     params: CTRLSACParams
     opt_state: CTRLSACOptStates
+    running_mean: jax.Array
+    running_std: jax.Array
 
 
 class CTRLSAC(Algorithm):
-    def __init__(self, agent: CTRLSACNet, params: CTRLSACParams, *, gamma: float = 0.99, lr: float = 1e-4,
+    def __init__(self, agent: CTRLSACNet, params: CTRLSACParams, obs_dim, *, gamma: float = 0.99, lr: float = 1e-4,
                  alpha_lr: float = 3e-4, tau: float = 0.005, reward_scale: float = 0.2,):
         self.agent = agent
         self.gamma = gamma
@@ -44,6 +46,8 @@ class CTRLSAC(Algorithm):
                 policy=self.optim.init(params.policy),
                 log_alpha=self.log_alpha_optim.init(params.log_alpha),
             ),
+            running_mean=jnp.zeros([1, obs_dim]),
+            running_std=jnp.ones([1, obs_dim])
         )
 
         @jax.jit
@@ -55,17 +59,34 @@ class CTRLSAC(Algorithm):
             phi_params, mu_params, target_phi_params, policy_params, log_alpha) = state.params
             q1_opt_state, q2_opt_state, phi_opt_state, mu_opt_state, policy_opt_state, log_alpha_opt_state = state.opt_state
             next_eval_key, new_eval_key = jax.random.split(key)
-
+            running_mean = state.running_mean
+            running_std = state.running_std
             reward *= self.reward_scale
+            new_mean = jnp.mean(obs, axis=0, keepdims=True)
+            new_std = jnp.std(obs, axis=0, keepdims=True)
+            # obs = (obs - running_mean) / running_std
 
             # reprsentation learning
+            # Naive logistic loss
+            # def repr_loss_fn(phi_params, mu_params):
+            #     phi = self.agent.phi({'params': phi_params}, obs, action)
+            #     mu = self.agent.mu({'params': mu_params}, next_obs)
+            #     labels = jnp.eye(phi.shape[0])
+            #     contrastive = jnp.sum(phi[:, jnp.newaxis, :] * mu[jnp.newaxis, :, :], axis=-1)
+            #     loss = optax.losses.sigmoid_binary_cross_entropy(contrastive, labels).mean()
+            #     return loss, phi
+            
+            # contrastive loss
             def repr_loss_fn(phi_params, mu_params):
                 phi = self.agent.phi({'params': phi_params}, obs, action)
                 mu = self.agent.mu({'params': mu_params}, next_obs)
-                labels = jnp.eye(phi.shape[0])
-                contrastive = jnp.sum(phi[:, jnp.newaxis, :] * mu[jnp.newaxis, :, :], axis=-1)
-                loss = optax.losses.sigmoid_binary_cross_entropy(contrastive, labels).mean()
-                return loss, phi
+                shuffled_next_obs = next_obs[jax.random.permutation(jax.random.PRNGKey(0), next_obs.shape[0])]
+                mu_noisy = self.agent.mu({'params': mu_params}, shuffled_next_obs)
+                cross_loss = jnp.linalg.vecdot(phi, mu, axis=-1)
+                noisy_loss = jnp.linalg.vecdot(phi, mu_noisy, axis=-1) ** 2
+                loss = -2 * cross_loss + noisy_loss
+                return loss.mean(), phi
+
             
             for _ in range(3):
                 (repr_loss, phi), (phi_grad, mu_grad) = jax.value_and_grad(repr_loss_fn, argnums=(0, 1), has_aux=True)(phi_params, mu_params)
@@ -124,11 +145,16 @@ class CTRLSAC(Algorithm):
             target_q2_params = optax.incremental_update(q2_params, target_q2_params, self.tau)
             target_phi_params = optax.incremental_update(phi_params, target_phi_params, self.tau)
 
+            running_mean = optax.incremental_update(running_mean, new_mean, self.tau)
+            running_std = optax.incremental_update(running_std, new_std, self.tau)
+
             state = CTRLSACTrainState(
                 params=CTRLSACParams(q1_params, q2_params, target_q1_params, target_q2_params, 
                                      phi_params, mu_params, target_phi_params, policy_params, log_alpha),
                 opt_state=CTRLSACOptStates(q1_opt_state, q2_opt_state, phi_opt_state, mu_opt_state, 
                                            policy_opt_state, log_alpha_opt_state),
+                running_mean = running_mean,
+                running_std = running_std
             )
             info = {
                 "q1_loss": q1_loss,
@@ -139,6 +165,8 @@ class CTRLSAC(Algorithm):
                 "repr_loss": repr_loss,
                 "entropy": -jnp.mean(new_logp),
                 "alpha": jnp.exp(log_alpha),
+                # "running_std_min": jnp.min(running_std),
+                # "running_mean"
             }
             return state, info
 

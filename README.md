@@ -8,7 +8,7 @@ This is the suppliment material for ICML 2025 submission
 
 02-17: Update haiku implementation to flax.
 
-    [ ] Finish all the baselines
+[ ] Finish all the baselines
 
 02-17: Update argparse to hydra to better manage hyper parameters.
 

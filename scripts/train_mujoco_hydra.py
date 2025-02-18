@@ -83,7 +83,7 @@ def run(cfg: DictConfig):
     elif args.alg == "ctrlsac":
         agent, params = create_ctrl_sac_net(init_network_key, obs_dim, act_dim, repr_dim,
                                             hidden_sizes, w_hidden_sizes, gelu, gelu)
-        algorithm = CTRLSAC(agent, params, lr=args.lr)
+        algorithm = CTRLSAC(agent, params, obs_dim, lr=args.lr)
     elif args.alg == "dacer":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
