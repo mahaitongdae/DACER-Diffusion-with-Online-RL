@@ -72,6 +72,24 @@ class BetaScheduleCoefficients:
         betas = 1 - alphas_cumprod[1:] / alphas_cumprod[:-1]
         betas = np.clip(betas, 0, 0.999)
         return betas
+    
+    @staticmethod
+    def linear_beta_schedule(timesteps: int):
+        start = 0.9999
+        end = 0.01
+        alpha = np.linspace(start, end, timesteps)
+        betas = 1 - alpha
+        betas = np.clip(betas, 0, 0.999)
+        return betas
+    
+    @staticmethod
+    def sqrt_beta_schedule(timesteps: int):
+        offset = 8e-3
+        t = np.arange(timesteps + 1)
+        delta = 1 - np.sqrt(t / (timesteps) + offset)
+        betas = 1 - delta[1:] / delta[:-1]
+        betas = np.clip(betas, 0, 0.999)
+        return betas
 
 @dataclass(frozen=True)
 class GaussianDiffusion:

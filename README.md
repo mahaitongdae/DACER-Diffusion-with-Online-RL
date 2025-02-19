@@ -1,14 +1,5 @@
-# [NeurIPS 2024] DACER
+# Submission for soft diffusion actor-critic
 
-This is the official repository of
-
-**Diffusion Actor-Critic with Entropy Regulator**,
-
-<p align="left">
-<a href='https://arxiv.org/abs/2405.15177' style='padding-left: 0.5rem;'>
-    <img src='https://img.shields.io/badge/arXiv-PDF-red?style=flat&logo=arXiv&logoColor=wihte' alt='arXiv PDF'>
-</a>
-</p>
 
 ## Installation
 
