@@ -18,15 +18,19 @@ This is the suppliment material for ICML 2025 submission
     - running specific config 
 
         ```python
-        python ./scripts/train_mujoco_hydra.py --config-name sac
+        python ./scripts/train_mujoco_hydra.py alg=sac
         ```
     - override specific config
         ```python 
-        python ./scripts/train_mujoco_hydra.py --config-name sac suffix=override_test
+        python ./scripts/train_mujoco_hydra.py alg=sac suffix=override_test
         ```
     - add new config
         ```python
-        python ./scripts/train_mujoco_hydra.py --config-name sac +new_config=new_config
+        python ./scripts/train_mujoco_hydra.py alg=sac +new_config=new_config
+        ```
+    - change algorithm config
+        ```python
+        python ./scripts/train_mujoco_hydra.py alg=sac alg.lr=5e-4
         ```
 
 

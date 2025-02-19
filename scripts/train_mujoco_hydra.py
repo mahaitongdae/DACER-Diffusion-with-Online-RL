@@ -31,9 +31,9 @@ from relax.utils.fs import PROJECT_ROOT
 from relax.utils.random_utils import seeding
 from relax.utils.log_diff import log_git_details
 
-@hydra.main(version_base=None, config_path='../config', config_name='ctrlsac')
-def run(cfg: DictConfig):
-    args = SimpleNamespace(**cfg)
+@hydra.main(version_base=None, config_path='../config', config_name='relax')
+def run(args: DictConfig):
+    alg_args = args.alg
     if args.debug:
         from jax import config
         config.update("jax_disable_jit", True)
@@ -53,44 +53,46 @@ def run(cfg: DictConfig):
         env, obs_dim, act_dim = create_env(args.env, env_seed, env_action_seed)
     eval_env = None
 
-    hidden_sizes = [args.hidden_dim] * args.hidden_num
-    diffusion_hidden_sizes = [args.diffusion_hidden_dim] * args.hidden_num
-    w_hidden_sizes = [args.hidden_dim] * args.w_hidden_num
-    repr_dim = args.repr_dim
+    hidden_sizes = [alg_args.hidden_dim] * alg_args.hidden_num
+    diffusion_hidden_sizes = [alg_args.diffusion_hidden_dim] * alg_args.hidden_num
+    w_hidden_sizes = [alg_args.hidden_dim] * alg_args.w_hidden_num
+    repr_dim = alg_args.repr_dim
 
     buffer = TreeBuffer.from_experience(obs_dim, act_dim, size=int(1e6), seed=buffer_seed)
 
     gelu = partial(jax.nn.gelu, approximate=False)
 
-    if args.alg == 'sdac':
+    if alg_args.alg_name == 'sdac':
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_sdac_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
-                                          num_timesteps=args.diffusion_steps,
-                                          num_particles=args.num_particles,
-                                          noise_scale=args.noise_scale,
-                                          target_entropy_scale=args.target_entropy_scale)
-        algorithm = SDAC(agent, params, lr=args.lr, alpha_lr=args.alpha_lr,
-                           delay_alpha_update=args.delay_alpha_update,
-                             lr_schedule_end=args.lr_schedule_end,
-                             use_ema=args.use_ema_policy)
-    elif args.alg == "qsm":
-        agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=args.num_particles)
-        algorithm = QSM(agent, params, lr=args.lr, lr_schedule_end=args.lr_schedule_end)
-    elif args.alg == "sac":
+                                          num_timesteps=alg_args.diffusion_steps,
+                                          num_particles=alg_args.num_particles,
+                                          noise_scale=alg_args.noise_scale,
+                                          target_entropy_scale=alg_args.target_entropy_scale)
+        algorithm = SDAC(agent, params, lr=alg_args.lr, alpha_lr=alg_args.alpha_lr,
+                           delay_alpha_update=alg_args.delay_alpha_update,
+                             lr_schedule_end=alg_args.lr_schedule_end,
+                             use_ema=alg_args.use_ema_policy)
+    elif alg_args.alg_name == "qsm":
+        agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=alg_args.num_particles)
+        algorithm = QSM(agent, params, lr=alg_args.lr, lr_schedule_end=alg_args.lr_schedule_end)
+    elif alg_args.alg_name == "sac":
         agent, params = create_sac_net(init_network_key, obs_dim, act_dim, hidden_sizes, gelu)
-        algorithm = SAC(agent, params, lr=args.lr)
-    elif args.alg == "ctrlsac":
+        algorithm = SAC(agent, params, lr=alg_args.lr)
+    elif alg_args.alg_name == "ctrlsac":
+        policy_hidden_sizes = [alg_args.policy_hidden_dim] * alg_args.hidden_num
         agent, params = create_ctrl_sac_net(init_network_key, obs_dim, act_dim, repr_dim,
-                                            hidden_sizes, w_hidden_sizes, gelu, gelu)
-        algorithm = CTRLSAC(agent, params, obs_dim, lr=args.lr)
-    elif args.alg == "dacer":
+                                            hidden_sizes, w_hidden_sizes, policy_hidden_sizes=policy_hidden_sizes, 
+                                            activation=gelu, w_activation=gelu)
+        algorithm = CTRLSAC(agent, params, obs_dim, repr_dim, lr=alg_args.lr, alpha_lr=alg_args.alpha_lr)
+    elif alg_args.alg_name == "dacer":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_dacer_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
-                                         num_timesteps=args.diffusion_steps)
-        algorithm = DACER(agent, params, lr=args.lr, lr_schedule_end=args.lr_schedule_end)
-    elif args.alg == "dipo":
+                                         num_timesteps=alg_args.diffusion_steps)
+        algorithm = DACER(agent, params, lr=alg_args.lr, lr_schedule_end=alg_args.lr_schedule_end)
+    elif alg_args.alg_name == "dipo":
         diffusion_buffer = TreeBuffer.from_example(
             ObsActionPair.create_example(obs_dim, act_dim),
             args.total_step,
@@ -103,19 +105,19 @@ def run(cfg: DictConfig):
             return x * jnp.tanh(jax.nn.softplus(x))
 
         agent, params = create_dipo_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=100)
-        algorithm = DIPO(agent, params, diffusion_buffer, lr=args.lr, action_gradient_steps=30, policy_target_delay=2, action_grad_norm=0.16)
-    elif args.alg == "qvpo":
+        algorithm = DIPO(agent, params, diffusion_buffer, lr=alg_args.lr, action_gradient_steps=30, policy_target_delay=2, action_grad_norm=0.16)
+    elif alg_args.alg_name == "qvpo":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_qvpo_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
-                                          num_timesteps=args.diffusion_steps,
-                                          num_particles=args.num_particles,
-                                          noise_scale=args.noise_scale)
-        algorithm = QVPO(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update)
+                                          num_timesteps=alg_args.diffusion_steps,
+                                          num_particles=alg_args.num_particles,
+                                          noise_scale=alg_args.noise_scale)
+        algorithm = QVPO(agent, params, lr=alg_args.lr, alpha_lr=alg_args.alpha_lr, delay_alpha_update=alg_args.delay_alpha_update)
     else:
-        raise ValueError(f"Invalid algorithm {args.alg}!")
+        raise ValueError(f"Invalid algorithm {alg_args.alg_name}!")
 
-    exp_dir = Path(HydraConfig.get().run.dir) # PROJECT_ROOT / "logs" / args.env / (args.alg + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
+    exp_dir = Path(HydraConfig.get().run.dir) # PROJECT_ROOT / "logs" / args.env / (alg_args.alg_name + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
     trainer = OffPolicyTrainer(
         env=env,
         algorithm=algorithm,
@@ -124,7 +126,7 @@ def run(cfg: DictConfig):
         total_step=args.total_step,
         sample_per_iteration=1,
         evaluate_env=eval_env,
-        save_policy_every=int(args.total_step / 40),
+        save_policy_every=int(args.total_step / args.total_evals),
         warmup_with="random",
         log_path=exp_dir,
     )
@@ -133,9 +135,9 @@ def run(cfg: DictConfig):
     log_git_details(log_file=os.path.join(exp_dir, 'git.diff'))
 
     # Save the arguments to a YAML file
-    args_dict = vars(args)
-    with open(os.path.join(exp_dir, 'config.yaml'), 'w') as yaml_file:
-        yaml.dump(args_dict, yaml_file)
+    # args_dict = cfg
+    # with open(os.path.join(exp_dir, 'config.yaml'), 'w') as yaml_file:
+    #     yaml.dump(args_dict, yaml_file)
     trainer.run(train_key)
 
 

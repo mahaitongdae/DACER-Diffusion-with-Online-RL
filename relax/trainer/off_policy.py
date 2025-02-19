@@ -135,7 +135,7 @@ class OffPolicyTrainer:
 
         if any_done:
             if self.sample_log_interval.check(sl.sample_episode):
-                sl.log(self.add_scalar)
+                sl.log(self.add_tensorboard)
             self.progress.update(sl.sample_step - self.progress.n)
 
             obs, _ = self.env.reset()
@@ -152,7 +152,7 @@ class OffPolicyTrainer:
         ul.add(info)
 
         if ul.update_step % self.update_log_n_step == 0:
-            ul.log(self.add_scalar)
+            ul.log(self.add_tensorboard)
 
     def train(self, key: jax.Array):
         key, warmup_key = jax.random.split(key)
@@ -183,9 +183,15 @@ class OffPolicyTrainer:
                 command = f"{sl.sample_step},{self.log_path / policy_pkl_name}\n"
                 self.evaluator.stdin.write(command.encode())
 
-    def add_scalar(self, tag: str, value: float, step: int):
+    def add_tensorboard(self, tag: str, value: float, step: int):
         self.last_metrics[tag] = value
-        self.logger.add_scalar(tag, value, step)
+        if 'dist' in tag:
+            self.logger.add_histogram(tag, value, step)
+            self.logger.add_scalar(tag + '_min', value.min(), step)
+            self.logger.add_scalar(tag + '_max', value.max(), step)
+            self.logger.add_scalar(tag + '_mean', value.mean(), step)
+        else:
+            self.logger.add_scalar(tag, value, step)
         self.logger.flush()
 
     def run(self, key: jax.Array):

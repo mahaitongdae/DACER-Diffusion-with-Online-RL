@@ -86,6 +86,7 @@ class SAC(Algorithm):
             q1, q2, new_logp = aux
             policy_update, policy_opt_state = self.optim.update(policy_grads, policy_opt_state)
             policy_params = optax.apply_updates(policy_params, policy_update)
+            policy_grad_norm = jnp.sqrt(sum(jnp.sum(g ** 2) for g in jax.tree_util.tree_leaves(policy_grads)))
 
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
@@ -107,11 +108,12 @@ class SAC(Algorithm):
             info = {
                 "q1_loss": q1_loss,
                 "q2_loss": q2_loss,
-                "q1": jnp.mean(q1),
-                "q2": jnp.mean(q2),
+                "dist_q1": q1,
+                "dist_q2": q2,
                 "policy_loss": policy_loss,
                 "entropy": -jnp.mean(new_logp),
                 "alpha": jnp.exp(log_alpha),
+                "policy_grad_norm": policy_grad_norm,
             }
             return state, info
 

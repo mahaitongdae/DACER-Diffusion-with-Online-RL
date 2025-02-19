@@ -27,7 +27,7 @@ class CTRLSACTrainState(NamedTuple):
 
 
 class CTRLSAC(Algorithm):
-    def __init__(self, agent: CTRLSACNet, params: CTRLSACParams, obs_dim, *, gamma: float = 0.99, lr: float = 1e-4,
+    def __init__(self, agent: CTRLSACNet, params: CTRLSACParams, obs_dim, repr_dim, *, gamma: float = 0.99, lr: float = 1e-4,
                  alpha_lr: float = 3e-4, tau: float = 0.005, reward_scale: float = 0.2,):
         self.agent = agent
         self.gamma = gamma
@@ -49,6 +49,7 @@ class CTRLSAC(Algorithm):
             running_mean=jnp.zeros([1, obs_dim]),
             running_std=jnp.ones([1, obs_dim])
         )
+        self.W = jax.random.multivariate_normal(jax.random.PRNGKey(0), jnp.zeros([repr_dim,]), jnp.eye(repr_dim), shape=[repr_dim])
 
         @jax.jit
         def stateless_update(
@@ -65,31 +66,62 @@ class CTRLSAC(Algorithm):
             new_mean = jnp.mean(obs, axis=0, keepdims=True)
             new_std = jnp.std(obs, axis=0, keepdims=True)
             # obs = (obs - running_mean) / running_std
+            # next_obs = (next_obs - running_mean) / running_std
 
             # reprsentation learning
             # Naive logistic loss
-            # def repr_loss_fn(phi_params, mu_params):
-            #     phi = self.agent.phi({'params': phi_params}, obs, action)
-            #     mu = self.agent.mu({'params': mu_params}, next_obs)
-            #     labels = jnp.eye(phi.shape[0])
-            #     contrastive = jnp.sum(phi[:, jnp.newaxis, :] * mu[jnp.newaxis, :, :], axis=-1)
-            #     loss = optax.losses.sigmoid_binary_cross_entropy(contrastive, labels).mean()
-            #     return loss, phi
-            
-            # contrastive loss
             def repr_loss_fn(phi_params, mu_params):
                 phi = self.agent.phi({'params': phi_params}, obs, action)
                 mu = self.agent.mu({'params': mu_params}, next_obs)
-                shuffled_next_obs = next_obs[jax.random.permutation(jax.random.PRNGKey(0), next_obs.shape[0])]
-                mu_noisy = self.agent.mu({'params': mu_params}, shuffled_next_obs)
-                cross_loss = jnp.linalg.vecdot(phi, mu, axis=-1)
-                noisy_loss = jnp.linalg.vecdot(phi, mu_noisy, axis=-1) ** 2
-                loss = -2 * cross_loss + noisy_loss
-                return loss.mean(), phi
+                labels = jnp.eye(phi.shape[0])
+                contrastive = jnp.sum(phi[:, jnp.newaxis, :] * mu[jnp.newaxis, :, :], axis=-1)
+                loss = optax.losses.sigmoid_binary_cross_entropy(contrastive, labels).mean()
+                prob = jnp.linalg.vecdot(phi, mu, axis=-1)
+                return loss, (phi, prob, prob)
+            
+            # # contrastive loss
+            # def repr_loss_fn(phi_params, mu_params):
+            #     phi = self.agent.phi({'params': phi_params}, obs, action)
+            #     mu = self.agent.mu({'params': mu_params}, next_obs)
+            #     # shuffled_next_obs = next_obs[jax.random.permutation(jax.random.PRNGKey(0), next_obs.shape[0])]
+            #     # mu_noisy = self.agent.mu({'params': mu_params}, shuffled_next_obs)
+            #     mu_noisy = self.agent.mu({'params': mu_params}, obs)
+            #     prob = jnp.linalg.vecdot(phi, mu, axis=-1)
+            #     noisy_prob = jnp.linalg.vecdot(phi, mu_noisy, axis=-1)
+            #     loss = -2 * prob + noisy_prob ** 2
+            #     return loss.mean(), (phi, prob, noisy_prob)
+            
+            # # nonlinear contrastive loss
+            # def repr_loss_fn(phi_params, mu_params):
+            #     phi = self.agent.phi({'params': phi_params}, obs, action)
+            #     mu = self.agent.mu({'params': mu_params}, next_obs)
+            #     # shuffled_next_obs = next_obs[jax.random.permutation(jax.random.PRNGKey(0), next_obs.shape[0])]
+            #     # mu_noisy = self.agent.mu({'params': mu_params}, shuffled_next_obs)
+            #     mu_noisy = self.agent.mu({'params': mu_params}, obs)
+            #     def inner_prod_on_hidden(x, y):
+            #         """
+            #         x / y: [batch_size, repr_dim]
+            #         W: [truncation_size, repr_dim]
+            #         --------------------------
+            #         W.T: [w_1, w_2, ..., w_T]
+            #         x: [[x_1],
+            #             [x_2],
+            #             ... ,
+            #             [x_B]
+            #         ]
+            #         """
+            #         x = x @ self.W.T
+            #         y = y @ self.W.T
+            #         return jnp.vecdot(jnp.sin(x), jnp.sin(y), axis=-1) / self.W.shape[0]
+            #     cross_loss = inner_prod_on_hidden(phi, mu)
+            #     noisy_loss = inner_prod_on_hidden(phi, mu_noisy) ** 2
+            #     loss = -2 * cross_loss + noisy_loss
+            #     return loss.mean(), phi
 
             
             for _ in range(3):
-                (repr_loss, phi), (phi_grad, mu_grad) = jax.value_and_grad(repr_loss_fn, argnums=(0, 1), has_aux=True)(phi_params, mu_params)
+                (repr_loss, aux), (phi_grad, mu_grad) = jax.value_and_grad(repr_loss_fn, argnums=(0, 1), has_aux=True)(phi_params, mu_params)
+                phi, prob, noisy_prob = aux
                 phi_update, phi_opt_state = self.optim.update(phi_grad, phi_opt_state)
                 mu_update, mu_opt_state = self.optim.update(mu_grad, mu_opt_state)
                 optax.apply_updates(phi_params, phi_update)
@@ -97,7 +129,9 @@ class CTRLSAC(Algorithm):
 
             # compute target q
             next_action, next_logp = self.agent.evaluate(next_eval_key, policy_params, next_obs)
-            next_phi = self.agent.phi({'params': target_phi_params}, next_obs, next_action)
+            # next_phi = self.agent.phi({'params': target_phi_params}, next_obs, next_action)
+            next_z = self.agent.phi({'params': target_phi_params}, next_obs, next_action)
+            next_phi = jnp.sin(next_z @ self.W.T)
             q1_target = self.agent.q({'params': target_q1_params}, next_phi)
             q2_target = self.agent.q({'params': target_q2_params}, next_phi)
             q_target = jnp.minimum(q1_target, q2_target) - jnp.exp(log_alpha) * next_logp
@@ -105,21 +139,24 @@ class CTRLSAC(Algorithm):
 
             # update q
             def q_loss_fn(q_params: dict) -> jax.Array:
-                q = self.agent.q({'params': q_params}, phi)
+                z = jnp.sin(phi @ self.W.T)
+                q = self.agent.q({'params': q_params}, z)
                 q_loss = jnp.mean((q - q_backup) ** 2)
                 return q_loss
 
-            q1_loss, q1_grads = jax.value_and_grad(q_loss_fn)(q1_params)
-            q2_loss, q2_grads = jax.value_and_grad(q_loss_fn)(q2_params)
-            q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
-            q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
-            q1_params = optax.apply_updates(q1_params, q1_update)
-            q2_params = optax.apply_updates(q2_params, q2_update)
+            for _ in range(1):
+                q1_loss, q1_grads = jax.value_and_grad(q_loss_fn)(q1_params)
+                q2_loss, q2_grads = jax.value_and_grad(q_loss_fn)(q2_params)
+                q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
+                q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
+                q1_params = optax.apply_updates(q1_params, q1_update)
+                q2_params = optax.apply_updates(q2_params, q2_update)
 
             # update policy
             def policy_loss_fn(policy_params: dict, phi_params) -> jax.Array:
                 new_action, new_logp = self.agent.evaluate(new_eval_key, policy_params, obs)
-                new_phi = self.agent.phi({'params': phi_params}, obs, new_action)
+                new_z = self.agent.phi({'params': phi_params}, obs, new_action)
+                new_phi = jnp.sin(new_z @ self.W.T)
                 q1 = self.agent.q({'params': q1_params}, new_phi)
                 q2 = self.agent.q({'params': q2_params}, new_phi)
                 q = jnp.minimum(q1, q2)
@@ -130,6 +167,7 @@ class CTRLSAC(Algorithm):
             q1, q2, new_logp = aux
             policy_update, policy_opt_state = self.optim.update(policy_grads, policy_opt_state)
             policy_params = optax.apply_updates(policy_params, policy_update)
+            policy_grad_norm = jnp.sqrt(sum(jnp.sum(g ** 2) for g in jax.tree_util.tree_leaves(policy_grads)))
 
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
@@ -165,6 +203,12 @@ class CTRLSAC(Algorithm):
                 "repr_loss": repr_loss,
                 "entropy": -jnp.mean(new_logp),
                 "alpha": jnp.exp(log_alpha),
+                "policy_grad_norm": policy_grad_norm,
+                "phi_norm": jnp.linalg.norm(phi, axis=-1).mean(),
+                "dist_q1": q1,
+                "dist_q2": q2,
+                "dist_prob": prob,
+                "dist_noisy_prob": prob,
                 # "running_std_min": jnp.min(running_std),
                 # "running_mean"
             }

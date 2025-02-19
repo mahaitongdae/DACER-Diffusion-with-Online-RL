@@ -54,18 +54,32 @@ class ReprQNet(nn.Module):
         return mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(repr)
     
 @dataclass
+class RFFQNet(nn.Module):
+    hidden_dim: int
+    activation: Activation
+    output_activation: Activation = Identity
+    name: str = None
+
+    @nn.compact
+    def __call__(self, repr: jax.Array) -> jax.Array:
+        x = jnp.sin(nn.Dense(self.hidden_dim)(repr))
+        x = nn.elu(nn.Dense(self.hidden_dim)(x))
+        x = nn.Dense(1)(x)
+        return x
+    
+@dataclass
 class PhiNetMLP(nn.Module):
     hidden_sizes: Sequence[int]
     repr_dim: int
     activation: Activation
-    output_activation: Activation = Identity
+    output_activation: Activation = nn.relu
     name: str = None
 
     @nn.compact
     def __call__(self, obs: jax.Array, act: jax.Array) -> jax.Array:
         input = jnp.concatenate((obs, act), axis=-1)
         input = flax.linen.LayerNorm()(input)
-        out = mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(input)
+        out = mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation, final_layer_bias=True)(input)
         return out # / jnp.sqrt(self.repr_dim)
     
 @dataclass
@@ -73,13 +87,13 @@ class MuNetMLP(nn.Module):
     hidden_sizes: Sequence[int]
     repr_dim: int
     activation: Activation
-    output_activation: Activation = Identity
+    output_activation: Activation = nn.relu
     name: str = None
 
     @nn.compact
     def __call__(self, obs: jax.Array) -> jax.Array:
         obs = flax.linen.LayerNorm()(obs)
-        out = mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation)(obs)
+        out = mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation, final_layer_bias=True)(obs)
         return out # / jnp.sqrt(self.repr_dim)
 
 @dataclass
@@ -239,11 +253,13 @@ def mlp(hidden_sizes: Sequence[int],
         activation: Activation,
         output_activation: Activation,
         *,
-        squeeze_output: bool = False) -> Callable[[jax.Array], jax.Array]:
+        squeeze_output: bool = False,
+        final_layer_bias=True) -> Callable[[jax.Array], jax.Array]:
     layers = []
-    for hidden_size in hidden_sizes:
-        layers += [nn.Dense(hidden_size), activation]
-    layers += [nn.Dense(output_size), output_activation]
+    if len(hidden_sizes) > 0:
+        for hidden_size in hidden_sizes:
+            layers += [nn.Dense(hidden_size), activation]
+    layers += [nn.Dense(output_size, use_bias=final_layer_bias), output_activation]
     if squeeze_output:
         layers.append(partial(jnp.squeeze, axis=-1))
     return flax.linen.Sequential(layers)

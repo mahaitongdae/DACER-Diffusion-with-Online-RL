@@ -21,7 +21,7 @@ class Algorithm:
 
     def update(self, key: jax.Array, data: Experience) -> Metric:
         self.state, info = self._update(key, self.state, data)
-        return {k: float(v) for k, v in info.items()}
+        return {k: v.astype(float) for k, v in info.items()}
 
     def get_action(self, key: jax.Array, obs: np.ndarray) -> np.ndarray:
         action = self._get_action(key, self.get_policy_params(), obs)

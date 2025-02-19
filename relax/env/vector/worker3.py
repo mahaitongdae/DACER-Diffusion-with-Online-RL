@@ -29,6 +29,9 @@ def initialize_shm(descr, mode):
 def main():
     args = parse_args()
 
+    if args.env.startswith('dm_control'):
+        from relax.env.dmc import dmc
+
     indices = [int(i) for i in args.index.split(",")]
     seeds = [int(i) for i in args.seed.split(",")]
     assert len(indices) == len(seeds)

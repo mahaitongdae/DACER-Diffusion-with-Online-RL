@@ -1,0 +1,15 @@
+total_evals: 10
+start_step: 30000
+suffix: test_use_atp1
+total_step: 1000000
+seed: 100
+env: HalfCheetah-v4
+debug: false
+num_vec_envs: 5
+
+defaults:
+ - alg: ctrlsac
+
+hydra:
+  run:
+    dir: ./logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_wlayer${alg.w_hidden_activation}_${suffix}

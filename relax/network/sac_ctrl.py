@@ -37,11 +37,13 @@ def create_ctrl_sac_net(
     repr_dim: int,
     hidden_sizes: Sequence[int],
     w_hidden_sizes: Sequence[int],
+    policy_hidden_sizes: Sequence[int] | None = None,
     activation: Activation = jax.nn.relu,
     w_activation: Activation = jax.nn.relu,
 ) -> Tuple[CTRLSACNet, CTRLSACParams]:
     q = ReprQNet(w_hidden_sizes, w_activation)
-    policy = PolicyNet(act_dim, hidden_sizes, activation)
+    policy_hidden_sizes = hidden_sizes if policy_hidden_sizes is None else policy_hidden_sizes
+    policy = PolicyNet(act_dim, policy_hidden_sizes, activation)
     phi = PhiNetMLP(hidden_sizes, repr_dim, activation)
     mu = MuNetMLP(hidden_sizes, repr_dim, activation)
 
