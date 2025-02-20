@@ -12,4 +12,4 @@ defaults:
 
 hydra:
   run:
-    dir: ./logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_wlayer${alg.w_hidden_activation}_${suffix}
+    dir: ./logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix} # wlayer${alg.w_hidden_activation}_

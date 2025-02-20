@@ -1,3 +1,6 @@
+import os
+os.environ["MUJOCO_GL"] = "osmesa"
+
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces

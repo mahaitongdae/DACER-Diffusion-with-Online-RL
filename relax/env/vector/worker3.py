@@ -37,6 +37,9 @@ def main():
     assert len(indices) == len(seeds)
 
     envs = []
+    if args.env.startswith('dm_control'):
+        from relax.env.dmc.register import register_dm_control_envs
+        register_dm_control_envs()
     for seed in seeds:
         env = gymnasium.make(args.env)
         env.reset(seed=seed)

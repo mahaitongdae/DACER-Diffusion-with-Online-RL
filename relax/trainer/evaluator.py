@@ -56,6 +56,9 @@ if __name__ == "__main__":
 
     master_rng = np.random.default_rng(args.seed)
     env_seed, env_action_seed, policy_seed = map(int, master_rng.integers(0, 2**32 - 1, 3))
+    if args.env.startswith('dm_control'):
+          from relax.env.dmc.register import register_dm_control_envs
+          register_dm_control_envs()
     env, _, _ = create_env(args.env, env_seed, env_action_seed)
 
     policy = PersistFunction.load(args.policy_root / "deterministic.pkl")

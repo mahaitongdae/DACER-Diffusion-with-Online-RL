@@ -31,6 +31,9 @@ from relax.utils.fs import PROJECT_ROOT
 from relax.utils.random_utils import seeding
 from relax.utils.log_diff import log_git_details
 
+from relax.env.dmc.register import register_dm_control_envs
+register_dm_control_envs()
+
 @hydra.main(version_base=None, config_path='../config', config_name='relax')
 def run(args: DictConfig):
     alg_args = args.alg
@@ -55,8 +58,7 @@ def run(args: DictConfig):
 
     hidden_sizes = [alg_args.hidden_dim] * alg_args.hidden_num
     diffusion_hidden_sizes = [alg_args.diffusion_hidden_dim] * alg_args.hidden_num
-    w_hidden_sizes = [alg_args.hidden_dim] * alg_args.w_hidden_num
-    repr_dim = alg_args.repr_dim
+    
 
     buffer = TreeBuffer.from_experience(obs_dim, act_dim, size=int(1e6), seed=buffer_seed)
 
@@ -81,6 +83,8 @@ def run(args: DictConfig):
         agent, params = create_sac_net(init_network_key, obs_dim, act_dim, hidden_sizes, gelu)
         algorithm = SAC(agent, params, lr=alg_args.lr)
     elif alg_args.alg_name == "ctrlsac":
+        repr_dim = alg_args.repr_dim
+        w_hidden_sizes = [alg_args.hidden_dim] * alg_args.w_hidden_num
         policy_hidden_sizes = [alg_args.policy_hidden_dim] * alg_args.hidden_num
         agent, params = create_ctrl_sac_net(init_network_key, obs_dim, act_dim, repr_dim,
                                             hidden_sizes, w_hidden_sizes, policy_hidden_sizes=policy_hidden_sizes, 

@@ -1,6 +1,5 @@
 from relax.env.dmc.wrapper import DMControlToGymWrapper
 from gymnasium.envs.registration import register
-from dm_control.suite import ALL_TASKS
 
 def make_dm_control_env(domain_name, task_name, render_size=(640, 480), **kwargs):
     """Factory function to create a DMControlToGymWrapper environment."""
@@ -8,23 +7,21 @@ def make_dm_control_env(domain_name, task_name, render_size=(640, 480), **kwargs
 
 # Register multiple DeepMind Control Suite environments
 def register_dm_control_envs():
-    # dm_control_envs = [
-    #     ("cartpole", "swingup"),
-    #     ("cheetah", "run"),
-    #     ("walker", "walk"),
-    #     ("walker", "run"),
-    #     ("reacher", "easy"),
-    #     ("hopper", "stand"),
-    #     ("hopper", "hop"),
-    # ]
+    dm_control_envs = [
+        ("quadruped", "walk"),
+        ("quadruped", "run"),
+        ("quadruped", "escape"),
+        ("quadruped", "fetch"),
+    ]
 
-    for domain, task in ALL_TASKS:
+    for domain, task in dm_control_envs:
         env_id = f"dm_control_{domain}_{task}-v0"
         register(
             id=env_id,
             entry_point=make_dm_control_env,
             kwargs={"domain_name": domain, "task_name": task},
         )
+        print(domain, task)
 
 """
 all avaliable envs:
