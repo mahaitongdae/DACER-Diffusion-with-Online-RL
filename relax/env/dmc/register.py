@@ -12,6 +12,9 @@ def register_dm_control_envs():
         ("quadruped", "run"),
         ("quadruped", "escape"),
         ("quadruped", "fetch"),
+        ("walker", "stand"),
+        ("walker", "run"),
+        ("walker", "walk"),
     ]
 
     for domain, task in dm_control_envs:
