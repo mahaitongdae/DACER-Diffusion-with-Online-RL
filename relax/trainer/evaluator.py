@@ -59,6 +59,8 @@ if __name__ == "__main__":
     if args.env.startswith('dm_control'):
           from relax.env.dmc.register import register_dm_control_envs
           register_dm_control_envs()
+    if args.env.startswith('pusht'):
+        from relax.env.pusht.pusht_env import PushTEnv
     env, _, _ = create_env(args.env, env_seed, env_action_seed)
 
     policy = PersistFunction.load(args.policy_root / "deterministic.pkl")

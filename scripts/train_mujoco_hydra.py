@@ -31,9 +31,6 @@ from relax.utils.fs import PROJECT_ROOT
 from relax.utils.random_utils import seeding
 from relax.utils.log_diff import log_git_details
 
-from relax.env.dmc.register import register_dm_control_envs
-register_dm_control_envs()
-
 @hydra.main(version_base=None, config_path='../config', config_name='relax')
 def run(args: DictConfig):
     alg_args = args.alg
@@ -50,6 +47,12 @@ def run(args: DictConfig):
     train_key = jax.random.key(train_seed)
     del init_network_seed, train_seed
 
+    if 'dm_control' in args.env:
+        from relax.env.dmc.register import register_dm_control_envs
+        register_dm_control_envs()
+    if 'pusht' in args.env:
+        from relax.env.pusht.pusht_env import PushTEnv
+
     if args.num_vec_envs > 0:
         env, obs_dim, act_dim = create_vector_env(args.env, args.num_vec_envs, env_seed, env_action_seed, mode="futex")
     else:
@@ -58,7 +61,7 @@ def run(args: DictConfig):
 
     hidden_sizes = [alg_args.hidden_dim] * alg_args.hidden_num
     diffusion_hidden_sizes = [alg_args.diffusion_hidden_dim] * alg_args.hidden_num
-    
+
 
     buffer = TreeBuffer.from_experience(obs_dim, act_dim, size=int(1e6), seed=buffer_seed)
 
@@ -87,7 +90,7 @@ def run(args: DictConfig):
         w_hidden_sizes = [alg_args.hidden_dim] * alg_args.w_hidden_num
         policy_hidden_sizes = [alg_args.policy_hidden_dim] * alg_args.hidden_num
         agent, params = create_ctrl_sac_net(init_network_key, obs_dim, act_dim, repr_dim,
-                                            hidden_sizes, w_hidden_sizes, policy_hidden_sizes=policy_hidden_sizes, 
+                                            hidden_sizes, w_hidden_sizes, policy_hidden_sizes=policy_hidden_sizes,
                                             activation=gelu, w_activation=gelu)
         algorithm = CTRLSAC(agent, params, obs_dim, repr_dim, lr=alg_args.lr, alpha_lr=alg_args.alpha_lr)
     elif alg_args.alg_name == "dacer":
@@ -148,4 +151,3 @@ def run(args: DictConfig):
 if __name__ == "__main__":
     run()
 
-    

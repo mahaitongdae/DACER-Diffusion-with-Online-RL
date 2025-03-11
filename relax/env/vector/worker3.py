@@ -40,6 +40,8 @@ def main():
     if args.env.startswith('dm_control'):
         from relax.env.dmc.register import register_dm_control_envs
         register_dm_control_envs()
+    if args.env.startswith('pusht'):
+        from relax.env.pusht.pusht_env import PushTEnv
     for seed in seeds:
         env = gymnasium.make(args.env)
         env.reset(seed=seed)

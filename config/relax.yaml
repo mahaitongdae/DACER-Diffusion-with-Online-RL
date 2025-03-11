@@ -8,7 +8,7 @@ debug: false
 num_vec_envs: 5
 
 defaults:
- - alg: ctrlsac
+ - alg: sdac
 
 hydra:
   run:
