@@ -11,6 +11,7 @@ import shapely.geometry as sg
 import cv2
 import skimage.transform as st
 from relax.env.pusht.pymunk_override import DrawOptions
+import logging
 
 def pymunk_to_shapely(body, shapes):
     geoms = list()
@@ -35,7 +36,9 @@ class PushTEnv(gym.Env):
                  render_action=True,
                  render_size=96,
                  reset_to_state=None,
-                 render_mode="rgb_array"
+                 render_mode="rgb_array",
+                 random_goal_pose=False,
+                 random_init_pose=True,
                  ):
         self.window_size = 512  # The size of the PyGame window
         self.rela_pos_scale = self.window_size / 4
@@ -50,9 +53,15 @@ class PushTEnv(gym.Env):
 
 
         # agent_pos, block_pos, block_angle
+        # self.observation_space = spaces.Box(
+        #     low=np.array([0.,0.,0., 0, 0], dtype=np.float32),
+        #     high=np.array([1.,1.,1., 1, 1], dtype=np.float32),
+        #     shape=(5,),
+        #     dtype=np.float32
+        # )
         self.observation_space = spaces.Box(
-            low=np.array([-4, -4, -4, -4, 0, 0], dtype=np.float32),
-            high=np.array([4, 4, 4, 4, 1, 1], dtype=np.float32),
+            low=np.array([-8, -8, -8, -8, 0, 0], dtype=np.float32),
+            high=np.array([8, 8, 8, 8, 1, 1], dtype=np.float32),
             shape=(6,),
             dtype=np.float32
         )
@@ -68,6 +77,8 @@ class PushTEnv(gym.Env):
         self.block_cog = block_cog
         self.damping = damping
         self.render_action = render_action
+        self.random_goal_pose = random_goal_pose
+        self.random_init_pose = random_init_pose
 
         """
         If human-rendering is used, `self.window` will be a reference
@@ -87,24 +98,43 @@ class PushTEnv(gym.Env):
         self.reset_to_state = reset_to_state
 
     def reset(self, seed=None, options=None):
-        # seed = seed or np.random.randint(0, 25536)
-        seed = 0
+        curriculum_level = options.get('curriculum_level', 1.0)
+        if not self.random_init_pose:
+            rs = np.random.RandomState(seed=0)
+        elif seed is not None:
+            seed = seed
+            rs = np.random.RandomState(seed=seed)
+        else:
+            rs = np.random.RandomState()
         self.best_coverage = 0
         shape_type = options['shape_type'] if options is not None else 'tee'
+        # use legacy RandomState for compatibility
+        
+        # x, y, theta (in radians)
+        if self.random_goal_pose:
+            lower = int(220 - 120 * curriculum_level)
+            upper = int(280 + 120 * curriculum_level)
+            self.goal_pose = np.array([
+                rs.randint(lower, upper), 
+                rs.randint(lower, upper),
+                (rs.randn() * 2 - 1) * np.pi * curriculum_level
+            ])
+        else:
+            self.goal_pose = np.array([256, 256, 0.]) # np.pi/4
         self._setup(shape_type=shape_type)
         if self.block_cog is not None:
             self.block.center_of_gravity = self.block_cog
         if self.damping is not None:
             self.space.damping = self.damping
 
-        # use legacy RandomState for compatibility
         state = self.reset_to_state
         if state is None:
-            rs = np.random.RandomState(seed=seed)
+            lower = int(220 - 120 * curriculum_level)
+            upper = int(280 + 120 * curriculum_level)
             state = np.array([
-                rs.randint(50, 450), rs.randint(50, 450),
-                rs.randint(100, 400), rs.randint(100, 400),
-                rs.randn() * 2 * np.pi - np.pi
+                rs.randint(lower, upper),  rs.randint(lower, upper),
+                rs.randint(lower, upper), rs.randint(lower, upper),
+                (rs.randn() * 2 - 1) * np.pi * curriculum_level
             ])
         self._set_state(state)
 
@@ -368,8 +398,6 @@ class PushTEnv(gym.Env):
             raise ValueError(f'Unsupported shape {shape_type}')
         self.goal_color = pygame.Color('LightGreen')
         self.debugging_color = pygame.Color('red')
-        # x, y, theta (in radians)
-        self.goal_pose = np.array([256, 256, 0.]) # np.pi/4
 
         # Add collision handling
         self.collision_handeler = self.space.add_collision_handler(0, 0)
@@ -475,6 +503,146 @@ class PushTEnv(gym.Env):
                      (0, -length/6)]
         vertices_ls = [vertices1, vertices2]
         return self.add_shape([0.5, 0.25], vertices_ls, position, angle, color, mask)
+    
+
+class PushTCurriculumEnv(PushTEnv):
+
+    def __init__(self, 
+                 success_number_every_stage=50,
+                 total_stage=10,
+                 legacy=False, 
+                 block_cog=None, 
+                 damping=None, 
+                 render_action=True, 
+                 render_size=96, 
+                 reset_to_state=None, 
+                 render_mode="rgb_array", 
+                 random_goal_pose=False, 
+                 random_init_pose=True):
+        super().__init__(legacy, block_cog, damping, render_action, render_size, 
+                         reset_to_state, render_mode, random_goal_pose, random_init_pose)
+        
+        self.success_numbers = 0
+        self.curriculum_level = 0.0
+        self.success_number_every_stage = success_number_every_stage
+        self.total_stage = total_stage
+
+    
+    def step(self, action):
+        dt = 1.0 / self.sim_hz
+        action = np.clip(action, -1, 1)
+        self.n_contact_points = 0
+        self.agent_touches_block = False
+        self.block_touches_wall = False
+        n_steps = self.sim_hz // self.control_hz
+        action_diff = 0
+        if self.latest_action is not None and action is not None:
+            action_diff = action - self.latest_action
+        if action is not None:
+            self.latest_action = action
+            for i in range(n_steps):
+                # Step PD control.
+                # P control works too.
+                # self.agent.velocity = Vec2d(*(self.k_p * (action - self.agent.position)))
+                self.agent.velocity = Vec2d(*(self.k_p * action))
+                # acceleration = self.k_p * (action - self.agent.position) + self.k_v * (Vec2d(0, 0) - self.agent.velocity)
+                # self.agent.velocity += acceleration * dt
+
+                # Step physics.
+                self.space.step(dt)
+
+        # compute reward
+        goal_body = self._get_goal_pose_body(self.goal_pose)
+        goal_geom = pymunk_to_shapely(goal_body, self.block.shapes)
+        block_geom = pymunk_to_shapely(self.block, self.block.shapes)
+
+        def angle_normalize(x):
+            return ((x + np.pi) % (2 * np.pi)) - np.pi
+
+        intersection_area = goal_geom.intersection(block_geom).area
+        goal_area = goal_geom.area
+        coverage = intersection_area / goal_area
+
+        def body_point_dist(body, point):
+            return min([sh.point_query(point).distance for sh in body.shapes])
+
+        angle_diff = (angle_normalize(
+            self.block.angle - self.goal_pose[2]) / np.pi) ** 2
+        pos_diff = np.sum(
+            np.array(((self.block.position - self.goal_pose[:2]) / self.window_size)) ** 2)
+        dist_agent_block = (body_point_dist(
+            self.block, self.agent.position) / self.window_size) ** 2
+
+        reward = 0
+        reward -= angle_diff + pos_diff
+        reward -= (not self.agent_touches_block) * 2.0
+        reward -= self.block_touches_wall * 4.0
+        reward -= dist_agent_block * 1.0
+
+        if done := np.clip(coverage / self.success_threshold, 0, 1) > self.success_threshold:
+            reward += 5000
+            self.success_numbers += 1
+
+        observation = self._get_obs()
+        info = self._get_info()
+        info['dist_agent_block'] = dist_agent_block
+        info['pos_diff'] = pos_diff
+        info['angle_diff'] = angle_diff
+
+        return observation, reward, done, False, info
+    
+    def update_curriculum_level(self):
+        if self.success_numbers >= self.success_number_every_stage and self.curriculum_level <= 1.:
+            self.curriculum_level += 1 / self.total_stage
+            logging.log(logging.INFO, f"update curriculum level to {self.curriculum_level:.3f}")
+    
+
+    def reset(self, seed=None, options=None):
+        self.update_curriculum_level()
+        curriculum_level = self.curriculum_level
+        if not self.random_init_pose:
+            rs = np.random.RandomState(seed=0)
+        elif seed is not None:
+            seed = seed
+            rs = np.random.RandomState(seed=seed)
+        else:
+            rs = np.random.RandomState()
+        self.best_coverage = 0
+        shape_type = options['shape_type'] if options is not None else 'tee'
+        # use legacy RandomState for compatibility
+        
+        # x, y, theta (in radians)
+        if self.random_goal_pose:
+            lower = int(220 - 120 * curriculum_level)
+            upper = int(280 + 120 * curriculum_level)
+            self.goal_pose = np.array([
+                rs.randint(lower, upper), 
+                rs.randint(lower, upper),
+                (rs.randn() * 2 - 1) * np.pi * curriculum_level
+            ])
+        else:
+            self.goal_pose = np.array([256, 256, 0.]) # np.pi/4
+        self._setup(shape_type=shape_type)
+        if self.block_cog is not None:
+            self.block.center_of_gravity = self.block_cog
+        if self.damping is not None:
+            self.space.damping = self.damping
+
+        state = self.reset_to_state
+        if state is None:
+            lower = int(220 - 120 * curriculum_level)
+            upper = int(280 + 120 * curriculum_level)
+            state = np.array([
+                rs.randint(lower, upper),  rs.randint(lower, upper),
+                rs.randint(lower, upper), rs.randint(lower, upper),
+                (rs.randn() * 2 - 1) * np.pi * curriculum_level
+            ])
+        self._set_state(state)
+
+        observation = self._get_obs()
+        return observation, {}
+
+    
 
 
 if __name__ == "__main__":

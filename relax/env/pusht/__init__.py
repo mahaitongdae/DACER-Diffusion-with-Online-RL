@@ -6,3 +6,9 @@ register(
     entry_point='relax.env.pusht.pusht_env:PushTEnv',
     max_episode_steps=300
 )
+
+register(
+        id='pushtcurriculum-v0',
+        entry_point='relax.env.pusht.pusht_env:PushTCurriculumEnv',
+        max_episode_steps=300
+    )
