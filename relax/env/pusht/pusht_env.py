@@ -546,7 +546,7 @@ class PushTCurriculumEnv(PushTEnv):
 
     def reset(self, seed=None, options=None):
         self.update_curriculum_level()
-        super().reset(seed=seed, options=options)
+        return super().reset(seed=seed, options=options)
 
     
 
