@@ -1,6 +1,7 @@
 import os
 
 import sys
+import time
 from pathlib import Path
 import argparse
 import pickle
@@ -15,13 +16,14 @@ from relax.utils.persistence import PersistFunction
 import imageio
 import cv2
 
-def evaluate(env, policy_fn, policy_params, num_episodes):
+def evaluate(env, policy_fn, policy_params, num_episodes, video_name=None, seed=0):
     ep_len_list = []
     ep_ret_list = []
-    frames = []
-    
+
+
     for s in range(num_episodes):
-        obs, _ = env.reset(seed=s)
+        frames = []
+        obs, _ = env.reset(seed=s+seed)
         ep_len = 0
         ep_ret = 0.0
         obses_list = []
@@ -31,31 +33,40 @@ def evaluate(env, policy_fn, policy_params, num_episodes):
             ep_len += 1
             ep_ret += reward
             frame = env.render()
+            if video_name is not None:
+                frames.append(frame)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Convert to BGR for OpenCV
             cv2.imshow("DM Control Real-Time Render", frame)
-    
+            time.sleep(0.05)
             if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to exit
                 break
-            
+
             obses_list.append(obs)
             if terminated or truncated:
                 break
-            
+
         ep_len_list.append(ep_len)
         ep_ret_list.append(ep_ret)
         cv2.destroyAllWindows()
-        
+        if video_name is not None:
+            imageio.mimsave(video_name + str(s + 1) + '.gif', frames)
+            print(f"Video saved as {video_name}")
+
     return ep_len_list, ep_ret_list, obses_list
 
 if __name__ == "__main__":
-    policy_root = Path('/home/haitong/PycharmProjects/DACER-Diffusion-with-Online-RL/logs/dm_control_walker_walk-v0/sdac_2025-02-19_22-15-17_s100_test_use_atp1')
+    import time
+    policy_root = Path('/home/haitong/PycharmProjects/DACER-Diffusion-with-Online-RL/logs/pushtcurriculum-v0/sdac_2025-03-12_14-26-15_s100_test_env')
     env_name = str(policy_root).split('/')[-2]
-    from relax.env.dmc.register import register_dm_control_envs
-    register_dm_control_envs()
+    if env_name.startswith('dm_control'):
+        from relax.env.dmc.register import register_dm_control_envs
+        register_dm_control_envs()
+    if env_name.startswith('pusht'):
+        from relax.env.pusht.pusht_env import PushTEnv
 
     master_rng = np.random.default_rng(0)
     env_seed, env_action_seed, policy_seed = map(int, master_rng.integers(0, 2**32 - 1, 3))
-    env, _, _ = create_env(env_name, env_seed, env_action_seed)
+    env, _, _ = create_env("pusht-v0", env_seed, env_action_seed) #, render_mode='rgb_array'
 
     policy = PersistFunction.load(policy_root / "deterministic.pkl")
     @jax.jit
@@ -63,9 +74,9 @@ if __name__ == "__main__":
         return policy(policy_params, obs).clip(-1, 1)
 
     step = int(1e6)
-    policy_path = "policy-500000-100000.pkl"
+    policy_path = "policy-200000-200000.pkl"
     with open(policy_root / policy_path, "rb") as f:
         policy_params = pickle.load(f)
 
-    ep_len_list, ep_ret_list, _ = evaluate(env, policy_fn, policy_params, 1)
+    ep_len_list, ep_ret_list, _ = evaluate(env, policy_fn, policy_params, 5, video_name=str(policy_root / 'visu'), seed=1)
     print(ep_ret_list)

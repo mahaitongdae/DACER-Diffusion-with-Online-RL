@@ -112,13 +112,13 @@ class PushTEnv(gym.Env):
         self.best_coverage = 0
         shape_type = options['shape_type'] if options is not None else 'tee'
         # use legacy RandomState for compatibility
-        
+
         # x, y, theta (in radians)
         if self.random_goal_pose:
             lower = int(220 - 120 * curriculum_level)
             upper = int(280 + 120 * curriculum_level)
             self.goal_pose = np.array([
-                rs.randint(lower, upper), 
+                rs.randint(lower, upper),
                 rs.randint(lower, upper),
                 (rs.randn() * 2 - 1) * np.pi * curriculum_level
             ])
@@ -475,20 +475,34 @@ class PushTEnv(gym.Env):
         length = 4
         length *= scale
 
-        vertices1 = [(-length/3, -length/3),
-                     (length*2/3, -length/3),
-                     (length*2/3, -length/2),
-                     (-length/3, -length/2)]
+        # vertices1 = [(-length/3, -length/3),
+        #              (length*2/3, -length/3),
+        #              (length*2/3, -length/2),
+        #              (-length/3, -length/2)]
+        #
+        # vertices2 = [(-length/3, -length/3),
+        #              (-length/3, length/3),
+        #              (0, length/3),
+        #              (0, -length/3)]
+        #
+        # vertices3 = [(-length/3, length/3),
+        #              (length*2/3, length/3),
+        #              (length*2/3, length/2),
+        #              (-length/3, length/2)]
+        vertices1 = [(-length / 2, scale),
+                     (length / 2, scale),
+                     (length / 2, 0),
+                     (-length / 2, 0)]
 
-        vertices2 = [(-length/3, -length/3),
-                     (-length/3, length/3),
-                     (0, length/3),
-                     (0, -length/3)]
+        vertices2 = [(-length / 2, scale),
+                     (-length / 2, length),
+                     (-length / 2 + scale, length),
+                     (-length / 2 + scale, scale)]
 
-        vertices3 = [(-length/3, length/3),
-                     (length*2/3, length/3),
-                     (length*2/3, length/2),
-                     (-length/3, length/2)]
+        vertices3 = [(length / 2 - scale, scale),
+                     (length / 2 - scale, length),
+                     (length / 2, length),
+                     (length / 2, scale)]
         vertices_ls = [vertices1, vertices2, vertices3]
         return self.add_shape([0.5, 0.25, 0.5], vertices_ls, position, angle, color, mask)
 
@@ -496,59 +510,67 @@ class PushTEnv(gym.Env):
         length = 4
         length *= scale
 
-        vertices1 = [(-length/3, -length/6),
-                     (length*2/3, -length/6),
-                     (length*2/3, -length/2),
-                     (-length/3, -length/2)]
-        vertices2 = [(-length/3, -length/6),
-                     (-length/3, length/2),
-                     (0, length/2),
-                     (0, -length/6)]
+        # vertices1 = [(-length/3, -length/6),
+        #              (length*2/3, -length/6),
+        #              (length*2/3, -length/2),
+        #              (-length/3, -length/2)]
+        # vertices2 = [(-length/3, -length/6),
+        #              (-length/3, length/2),
+        #              (0, length/2),
+        #              (0, -length/6)]
+        vertices1 = [(-length / 2, scale),
+                     (length / 2, scale),
+                     (length / 2, 0),
+                     (-length / 2, 0)]
+        vertices2 = [(-length / 2, scale),
+                     (-length / 2, length),
+                     (-length / 2 + scale, length),
+                     (-length / 2 + scale, scale)]
         vertices_ls = [vertices1, vertices2]
         return self.add_shape([0.5, 0.25], vertices_ls, position, angle, color, mask)
-    
+
 
 class PushTCurriculumEnv(PushTEnv):
 
-    def __init__(self, 
+    def __init__(self,
                  success_number_every_stage=50,
                  total_stage=10,
-                 legacy=False, 
-                 block_cog=None, 
-                 damping=None, 
-                 render_action=True, 
-                 render_size=96, 
-                 reset_to_state=None, 
-                 render_mode="rgb_array", 
-                 random_goal_pose=False, 
+                 legacy=False,
+                 block_cog=None,
+                 damping=None,
+                 render_action=True,
+                 render_size=96,
+                 reset_to_state=None,
+                 render_mode="rgb_array",
+                 random_goal_pose=False,
                  random_init_pose=True):
-        super().__init__(legacy, block_cog, damping, render_action, render_size, 
+        super().__init__(legacy, block_cog, damping, render_action, render_size,
                          reset_to_state, render_mode, random_goal_pose, random_init_pose)
-        
+
         self.success_numbers = 0
         self.curriculum_level = 0.0
         self.success_number_every_stage = success_number_every_stage
         self.total_stage = total_stage
 
-    
+
     def step(self, action):
         obs, reward, done, truncated, info = super().step(action)
         if done:
             self.success_numbers += 1
         return obs, reward, done, truncated, info
-    
+
     def update_curriculum_level(self):
         if self.success_numbers >= self.success_number_every_stage and self.curriculum_level <= 0.99:
             self.curriculum_level += 1 / self.total_stage
             logging.log(logging.INFO, f"update curriculum level to {self.curriculum_level:.3f}")
             self.success_numbers = 0
-    
+
 
     def reset(self, seed=None, options=None):
         self.update_curriculum_level()
         super().reset(seed=seed, options=options)
 
-    
+
 
 
 if __name__ == "__main__":
@@ -562,7 +584,7 @@ if __name__ == "__main__":
     )
 
     env = gym.make('pusht-v0')
-    env.reset()
+    env.reset(options={'shape_type': 'lee'})
     for i in range(300):
         env.step(env.action_space.sample())
         env.render()
