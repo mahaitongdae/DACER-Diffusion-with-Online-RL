@@ -12,3 +12,9 @@ register(
         entry_point='relax.env.pusht.pusht_env:PushTCurriculumEnv',
         max_episode_steps=300
     )
+
+register(
+        id='pushtcurriculum-v1',
+        entry_point='relax.env.pusht.pusht_shp_env:PushTShpCurriculumEnv',
+        max_episode_steps=300
+    )
