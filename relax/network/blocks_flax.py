@@ -51,7 +51,41 @@ class ReprQNet(nn.Module):
 
     @nn.compact
     def __call__(self, repr: jax.Array) -> jax.Array:
+        repr = flax.linen.LayerNorm()(repr)
         return mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(repr)
+        # return nn.Dense(1, use_bias=False)(repr).squeeze()
+    
+@dataclass
+class RandomMuNet(nn.Module):
+    hidden_sizes: Sequence[int]
+    repr_dim: int
+    activation: Activation
+    output_activation: Activation = nn.relu
+    name: str = None
+    sigma: float = 1.
+    random_feature_dim: int = 4096
+    out_normalized = True
+
+    @nn.compact
+    def __call__(self, obs: jax.Array):
+        # Define Gaussian initialization (stddev=0.1)
+        init_fn_kernel_fourier = nn.initializers.normal(stddev=self.sigma)
+        init_fn_bias_fourier = nn.initializers.uniform(2 * jnp.pi)
+        init_fn_kernel_rand_func = nn.initializers.normal(stddev=1.0)
+        init_fn_bias_rand_func = nn.initializers.constant(0.)
+
+        # Apply initialization to a Dense layer
+        x = nn.Dense(features=self.random_feature_dim, 
+                     kernel_init=init_fn_kernel_fourier, 
+                     bias_init=init_fn_bias_fourier)(obs)
+        x = jnp.cos(x)
+        x = nn.Dense(features=self.repr_dim, 
+                     kernel_init=init_fn_kernel_rand_func,
+                     bias_init=init_fn_bias_rand_func)(x)  # Output layer
+        if self.out_normalized:
+            return x / jnp.sqrt(self.repr_dim)
+        else:
+            return x
     
 @dataclass
 class RFFQNet(nn.Module):
@@ -74,13 +108,17 @@ class PhiNetMLP(nn.Module):
     activation: Activation
     output_activation: Activation = nn.relu
     name: str = None
+    out_normalized = False
 
     @nn.compact
     def __call__(self, obs: jax.Array, act: jax.Array) -> jax.Array:
         input = jnp.concatenate((obs, act), axis=-1)
-        input = flax.linen.LayerNorm()(input)
+        # input = flax.linen.LayerNorm()(input)
         out = mlp(self.hidden_sizes, self.repr_dim, self.activation, self.output_activation, final_layer_bias=True)(input)
-        return out # / jnp.sqrt(self.repr_dim)
+        if self.out_normalized:
+            return out / jnp.sqrt(self.repr_dim)
+        else:
+            return out
     
 @dataclass
 class MuNetMLP(nn.Module):
@@ -258,7 +296,8 @@ def mlp(hidden_sizes: Sequence[int],
     layers = []
     if len(hidden_sizes) > 0:
         for hidden_size in hidden_sizes:
-            layers += [nn.Dense(hidden_size), activation]
+            layers += [nn.Dense(hidden_size, kernel_init=nn.initializers.orthogonal(),
+                                bias_init=nn.initializers.constant(0.)), activation]
     layers += [nn.Dense(output_size, use_bias=final_layer_bias), output_activation]
     if squeeze_output:
         layers.append(partial(jnp.squeeze, axis=-1))

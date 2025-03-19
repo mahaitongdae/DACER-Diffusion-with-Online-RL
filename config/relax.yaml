@@ -1,7 +1,7 @@
 total_evals: 10
 start_step: 30000
 suffix: test_use_atp1
-total_step: 1000000
+total_step: 2000000
 seed: 100
 env: HalfCheetah-v4
 debug: false

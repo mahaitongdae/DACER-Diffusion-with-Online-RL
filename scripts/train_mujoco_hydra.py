@@ -16,6 +16,7 @@ from relax.algorithm.dipo import DIPO
 from relax.algorithm.qvpo import QVPO
 from relax.algorithm.sdac import SDAC
 from relax.algorithm.sac_ctrl import CTRLSAC
+from relax.algorithm.sac_rand import RANDSAC
 from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
 from relax.network.sac_ctrl import create_ctrl_sac_net
@@ -24,6 +25,7 @@ from relax.network.qsm import create_qsm_net
 from relax.network.dipo import create_dipo_net
 from relax.network.sdac import create_sdac_net
 from relax.network.qvpo import create_qvpo_net
+from relax.network.sac_rand import create_rand_sac_net
 from relax.trainer.off_policy import OffPolicyTrainer
 from relax.env import create_env, create_vector_env
 from relax.utils.experience import Experience, ObsActionPair
@@ -93,6 +95,20 @@ def run(args: DictConfig):
                                             hidden_sizes, w_hidden_sizes, policy_hidden_sizes=policy_hidden_sizes,
                                             activation=gelu, w_activation=gelu)
         algorithm = CTRLSAC(agent, params, obs_dim, repr_dim, lr=alg_args.lr, alpha_lr=alg_args.alpha_lr)
+    elif alg_args.alg_name == "randsac":
+        repr_dim = alg_args.repr_dim
+        sigma = alg_args.sigma
+        random_feature_dim = alg_args.random_feature_dim
+        w_hidden_sizes = [alg_args.hidden_dim] * alg_args.w_hidden_num
+        policy_hidden_sizes = [alg_args.policy_hidden_dim] * alg_args.hidden_num
+        agent, params = create_rand_sac_net(init_network_key, obs_dim, act_dim, repr_dim,
+                                            hidden_sizes, w_hidden_sizes, 
+                                            policy_hidden_sizes=policy_hidden_sizes,
+                                            activation=gelu, w_activation=gelu,
+                                            mu_random_feature_sigma=sigma,
+                                            mu_random_feature_dim=random_feature_dim
+                                            )
+        algorithm = RANDSAC(agent, params, obs_dim, repr_dim, lr=alg_args.lr, alpha_lr=alg_args.alpha_lr)
     elif alg_args.alg_name == "dacer":
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))

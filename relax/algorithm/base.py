@@ -75,3 +75,36 @@ class Algorithm:
         self._update(key, self.state, data)
         self._get_action(key, policy_params, obs)
         self._get_deterministic_action(policy_params, obs)
+        
+class ReprAlgorithm(Algorithm):
+    
+    def _implement_common_behavior(self, 
+                                   stateless_update, 
+                                   stateless_get_action, 
+                                   stateless_get_deterministic_action, 
+                                   stateless_get_phi,
+                                   stateless_get_value=None):
+        super()._implement_common_behavior(stateless_update, 
+                                            stateless_get_action, 
+                                            stateless_get_deterministic_action, 
+                                            stateless_get_value)
+        self._get_phi = jax.jit(stateless_get_phi)
+        
+        
+    def get_phi_params(self):
+        return self.state.params.phi
+        
+    def save_repr_structure(self, root: os.PathLike, dummy_obs: jax.Array, dummy_action: jax.Array):
+        root = Path(root)
+
+        key = jax.random.key(0)
+        phi = make_persist(self._get_phi._fun)(key, self.get_phi_params(), dummy_obs, dummy_action)
+
+        phi.save(root / "repr_phi.pkl")
+        phi.save_info(root / "repr_phi.txt")
+        
+
+    def save_repr(self, path: str) -> None:
+        phi = jax.device_get(self.get_phi_params())
+        with open(path, "wb") as f:
+            pickle.dump(phi, f)

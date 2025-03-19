@@ -10,7 +10,7 @@ from tqdm import tqdm
 from tensorboardX import SummaryWriter
 from tensorboardX.summary import hparams
 
-from relax.algorithm import Algorithm
+from relax.algorithm import Algorithm, ReprAlgorithm
 from relax.buffer import ExperienceBuffer
 from relax.env.vector import VectorEnv
 from relax.trainer.accumulator import SampleLog, VectorSampleLog, UpdateLog, Interval
@@ -73,7 +73,7 @@ class OffPolicyTrainer:
         self.save_policy_interval = Interval(self.save_policy_every)
         # self.eval_interval = Interval()
 
-    def setup(self, dummy_data: Experience):
+    def setup(self, dummy_data: Experience, save_extra=True):
         self.algorithm.warmup(dummy_data)
 
         # Setup logger
@@ -81,6 +81,9 @@ class OffPolicyTrainer:
         self.progress = tqdm(total=self.total_step, desc="Sample Step", disable=None, dynamic_ncols=True)
 
         self.algorithm.save_policy_structure(self.log_path, dummy_data.obs[0])
+        if isinstance(self.algorithm,ReprAlgorithm) and save_extra:
+            self.algorithm.save_repr_structure(self.log_path, dummy_data.obs, dummy_data.action)
+            
         self.evaluator = subprocess.Popen(
             [
                 sys.executable,
@@ -179,6 +182,8 @@ class OffPolicyTrainer:
                     update_step=ul.update_step,
                 )
                 self.algorithm.save_policy(self.log_path / policy_pkl_name)
+                if isinstance(self.algorithm, ReprAlgorithm):
+                    self.algorithm.save_repr(self.log_path / policy_pkl_name.replace('policy', 'repr'))
 
                 command = f"{sl.sample_step},{self.log_path / policy_pkl_name}\n"
                 self.evaluator.stdin.write(command.encode())
