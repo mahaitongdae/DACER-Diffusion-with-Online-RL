@@ -33,7 +33,7 @@ class RANDSAC(ReprAlgorithm):
         self.agent = agent
         self.gamma = gamma
         self.tau = tau
-        # self.critic_optim = optax.adam(3e-4)
+        self.critic_optim = optax.adam(3e-3)
         self.optim = optax.adam(lr)
         self.log_alpha_optim = optax.adam(alpha_lr)
         self.reward_scale = reward_scale
@@ -124,8 +124,8 @@ class RANDSAC(ReprAlgorithm):
             for _ in range(1):
                 q1_loss, q1_grads = jax.value_and_grad(q_loss_fn)(q1_params)
                 q2_loss, q2_grads = jax.value_and_grad(q_loss_fn)(q2_params)
-                q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
-                q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
+                q1_update, q1_opt_state = self.critic_optim.update(q1_grads, q1_opt_state)
+                q2_update, q2_opt_state = self.critic_optim.update(q2_grads, q2_opt_state)
                 q1_params = optax.apply_updates(q1_params, q1_update)
                 q2_params = optax.apply_updates(q2_params, q2_update)
 

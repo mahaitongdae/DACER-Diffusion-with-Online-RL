@@ -106,7 +106,7 @@ class PhiNetMLP(nn.Module):
     hidden_sizes: Sequence[int]
     repr_dim: int
     activation: Activation
-    output_activation: Activation = nn.relu
+    output_activation: Activation = Identity
     name: str = None
     out_normalized = False
 
