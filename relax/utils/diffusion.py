@@ -85,7 +85,7 @@ class BetaScheduleCoefficients:
 @dataclass(frozen=True)
 class GaussianDiffusion:
     num_timesteps: int
-    noise_schedule: int
+    noise_schedule: str = 'cosine'
 
     def beta_schedule(self):
         with jax.ensure_compile_time_eval():
