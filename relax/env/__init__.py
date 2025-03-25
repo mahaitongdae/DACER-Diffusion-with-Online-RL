@@ -49,8 +49,8 @@ class RelaxWrapper(Wrapper):
         obs, reward, terminated, truncated, info = self.env.step(action)
         return obs.astype(np.float32, copy=False), reward, terminated, truncated, info
 
-def create_env(name: str, seed: int, action_seed: int = 0):
-    env = make(name)
+def create_env(name: str, seed: int, action_seed: int = 0, **kwargs):
+    env = make(name, **kwargs)
     env.reset(seed=seed)
     env = RelaxWrapper(env, action_seed)
     return env, env.obs_dim, env.act_dim

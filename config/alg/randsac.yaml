@@ -3,7 +3,7 @@ alpha_lr: 3e-4
 delay_alpha_update: 250
 diffusion_hidden_dim: 256
 diffusion_steps: 20
-hidden_dim: 1024
+hidden_dim: 2048
 policy_hidden_dim: 256
 hidden_num: 2
 lr: 0.0003

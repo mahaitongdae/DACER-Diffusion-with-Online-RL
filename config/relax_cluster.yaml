@@ -1,0 +1,16 @@
+total_evals: 10
+start_step: 30000
+suffix: rebuttal_run
+total_step: 1000000
+seed: 100
+env: HalfCheetah-v4
+debug: false
+num_vec_envs: 0
+
+defaults:
+ - _self_
+ - alg: sdac
+
+hydra:
+  run:
+    dir: /n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs/logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix} # wlayer${alg.w_hidden_activation}_

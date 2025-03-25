@@ -55,7 +55,7 @@ class QVPO(Algorithm):
         lr_schedule = optax.schedules.linear_schedule(
             init_value=lr,
             end_value=lr_schedule_end,
-            transition_steps=int(5e4),
+            transition_steps=int(25e4),
             transition_begin=int(2.5e4),
         )
         self.policy_optim = optax.adam(learning_rate=lr_schedule)

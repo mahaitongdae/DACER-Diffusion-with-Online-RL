@@ -33,7 +33,7 @@ class RANDSAC(ReprAlgorithm):
         self.agent = agent
         self.gamma = gamma
         self.tau = tau
-        self.critic_optim = optax.adam(3e-3)
+        self.critic_optim = optax.adam(3e-4)
         self.optim = optax.adam(lr)
         self.log_alpha_optim = optax.adam(alpha_lr)
         self.reward_scale = reward_scale
