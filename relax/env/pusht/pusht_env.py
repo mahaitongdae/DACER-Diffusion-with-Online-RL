@@ -543,12 +543,13 @@ class PushTCurriculumEnv(PushTEnv):
                  reset_to_state=None,
                  render_mode="rgb_array",
                  random_goal_pose=False,
-                 random_init_pose=True):
+                 random_init_pose=True,
+                 curriculum_level=0.0):
         super().__init__(legacy, block_cog, damping, render_action, render_size,
                          reset_to_state, render_mode, random_goal_pose, random_init_pose)
 
         self.success_numbers = 0
-        self.curriculum_level = 0.0
+        self.curriculum_level = curriculum_level
         self.success_number_every_stage = success_number_every_stage
         self.total_stage = total_stage
 
@@ -569,6 +570,9 @@ class PushTCurriculumEnv(PushTEnv):
     def reset(self, seed=None, options=None):
         self.update_curriculum_level()
         return super().reset(seed=seed, options=options)
+
+    def set_curriculum_level(self, curriculum_level):
+        self.curriculum_level = curriculum_level
 
 
 

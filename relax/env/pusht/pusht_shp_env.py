@@ -71,10 +71,11 @@ class PushTShpCurriculumEnv(PushTCurriculumEnv):
                  render_action = True,
                  render_size = 96,
                  reset_to_state = None,
+                 curriculum_level=0.0
                  ):
         super().__init__(legacy=legacy, block_cog=block_cog, damping=damping,
                          render_action=render_action, render_size=render_size,
-                         reset_to_state=reset_to_state)
+                         reset_to_state=reset_to_state, curriculum_level=curriculum_level)
 
         self.observation_space = spaces.Box(
             low=np.array([-8, -8, -8, -8, 0, 0, 0, 0, 0, 0,], dtype=np.float32),
