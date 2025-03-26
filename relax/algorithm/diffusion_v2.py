@@ -326,13 +326,13 @@ class Diffv2(Algorithm):
         return (self.state.params.target_poicy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2)
 
     def save_policy(self, path: str) -> None:
-        policy = jax.device_get(self.get_policy_params_to_save()) if self.use_ema else jax.device_get(self.get_policy_params())
+        policy = jax.device_get(self.get_policy_params_to_save()) #  if self.use_ema else jax.device_get(self.get_policy_params())
         with open(path, "wb") as f:
             pickle.dump(policy, f)
 
     def get_action(self, key: jax.Array, obs: np.ndarray) -> np.ndarray:
-        params = jax.lax.cond(self.use_ema, self.get_policy_params_to_save, self.get_policy_params)
-        action = self._get_action(key, params, obs)
+        # params = jax.lax.cond(self.use_ema, self.get_policy_params_to_save, self.get_policy_params)
+        action = self._get_action(key, self.get_policy_params_to_save(), obs)
         return np.asarray(action)
 
 def estimate_entropy(actions, num_components=3):  # (batch, sample, dim)
