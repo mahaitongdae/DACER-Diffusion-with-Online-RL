@@ -111,9 +111,10 @@ class QVPO(Algorithm):
             q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
             q1_params = optax.apply_updates(q1_params, q1_update)
             q2_params = optax.apply_updates(q2_params, q2_update)
-
+            new_action = self.agent.get_action(new_eval_key, (policy_params, q1_params, q2_params), obs)
+            
             def policy_loss_fn(policy_params, q1_params, q2_params) -> jax.Array:
-                new_action = self.agent.get_action(new_eval_key, (policy_params, q1_params, q2_params), obs)
+                
                 q_mean = get_min_q(obs, new_action)
                 q_weights = jnp.where(q_mean > 1., q_mean, jnp.zeros_like(q_mean))
                 # q_weights = q_weights
