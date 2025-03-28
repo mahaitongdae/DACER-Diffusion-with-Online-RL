@@ -4,36 +4,37 @@ from typing import Callable, NamedTuple, Optional, Sequence, Tuple
 import jax, jax.numpy as jnp
 import haiku as hk
 
-from relax.network.blocks import Activation, QNet, QScoreNet
+# from relax.network.blocks import Activation, QNet, QScoreNet
+from relax.network.blocks_flax import Activation, QNet, QScoreNet
 from relax.utils.langevin import LangevinDynamics
 
 
 class QSMParams(NamedTuple):
-    q1: hk.Params
-    q2: hk.Params
-    target_q1: hk.Params
-    target_q2: hk.Params
-    q_score: hk.Params
+    q1: dict
+    q2: dict
+    target_q1: dict
+    target_q2: dict
+    q_score: dict
 
 
 @dataclass
 class QSMNet:
-    q: Callable[[hk.Params, jax.Array, jax.Array], jax.Array]
-    q_score: Callable[[hk.Params, jax.Array, jax.Array], jax.Array]
+    q: Callable[[dict, jax.Array, jax.Array], jax.Array]
+    q_score: Callable[[dict, jax.Array, jax.Array], jax.Array]
     num_timesteps: int
     act_dim: int
     num_particles: int = 1
 
-    def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array, *, num_particles: Optional[int] = None) -> jax.Array:
+    def get_action(self, key: jax.Array, policy_params: dict, obs: jax.Array, *, num_particles: Optional[int] = None) -> jax.Array:
         langevin = LangevinDynamics(self.num_timesteps)
         score_params, q1_params, q2_params = policy_params
         def model_fn(x):
-            return self.q_score(score_params, obs, x)
+            return self.q_score({'params': score_params}, obs, x)
 
         def sample(key):
             act = langevin.sample(key, model_fn, (*obs.shape[:-1], self.act_dim))
-            q1 = self.q(q1_params, obs, act)
-            q2 = self.q(q2_params, obs, act)
+            q1 = self.q({'params': q1_params}, obs, act)
+            q2 = self.q({'params': q2_params}, obs, act)
             q = jnp.minimum(q1, q2)
             return act, q
 
@@ -48,16 +49,16 @@ class QSMNet:
             act = jnp.take_along_axis(acts, q_best_ind[..., None], axis=0).squeeze(axis=0)
         return act
 
-    def get_deterministic_action(self, policy_params: hk.Params, obs: jax.Array, *, num_particles: Optional[int] = None) -> jax.Array:
+    def get_deterministic_action(self, policy_params: dict, obs: jax.Array, *, num_particles: Optional[int] = None) -> jax.Array:
         # NOTE: Not sure if it is wise to get deterministic action from the score model
         key = jax.random.key(0)
         return self.get_action(key, policy_params, obs, num_particles=num_particles)
 
-    def get_q_score_from_gradient(self, q_params: hk.Params, obs: jax.Array, act: jax.Array) -> Tuple[jax.Array, jax.Array]:
+    def get_q_score_from_gradient(self, q_params: dict, obs: jax.Array, act: jax.Array) -> Tuple[jax.Array, jax.Array]:
         def inner(act: jax.Array, obs: jax.Array):
             # NOTE: if a special q network cannot handle unbatched inputs,
             #       we can manually unsqueeze & squeeze here
-            return self.q(q_params, obs, act)
+            return self.q({'params': q_params}, obs, act)
         return jax.vmap(jax.value_and_grad(inner))(act, obs)
 
 def create_qsm_net(
@@ -69,17 +70,19 @@ def create_qsm_net(
     num_timesteps: int = 100,
     num_particles: int = 1,
 ) -> Tuple[QSMNet, QSMParams]:
-    q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
-    q_score = hk.without_apply_rng(hk.transform(lambda obs, act: QScoreNet(hidden_sizes, activation)(obs, act)))
+    # q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
+    # q_score = hk.without_apply_rng(hk.transform(lambda obs, act: QScoreNet(hidden_sizes, activation)(obs, act)))
+    q = QNet(hidden_sizes, activation)
+    q_score = QScoreNet(hidden_sizes, activation)
 
     @jax.jit
     def init(key, obs, act):
         q1_key, q2_key, q_score_key = jax.random.split(key, 3)
-        q1_params = q.init(q1_key, obs, act)
-        q2_params = q.init(q2_key, obs, act)
+        q1_params = q.init(q1_key, obs, act)['params']
+        q2_params = q.init(q2_key, obs, act)['params']
         target_q1_params = q1_params
         target_q2_params = q2_params
-        q_score_params = q_score.init(q_score_key, obs, act)
+        q_score_params = q_score.init(q_score_key, obs, act)['params']
         return QSMParams(q1_params, q2_params, target_q1_params, target_q2_params, q_score_params)
 
     sample_obs = jnp.zeros((1, obs_dim))

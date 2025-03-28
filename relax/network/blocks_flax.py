@@ -248,6 +248,7 @@ class QScoreNet(nn.Module):
     output_activation: Activation = Identity
     name: str = None
 
+    @nn.compact
     def __call__(self, obs: jax.Array, act: jax.Array) -> jax.Array:
         act_dim = act.shape[-1]
         input = jnp.concatenate((obs, act), axis=-1)

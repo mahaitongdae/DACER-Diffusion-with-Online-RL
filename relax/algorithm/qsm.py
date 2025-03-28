@@ -54,14 +54,14 @@ class QSM(Algorithm):
 
             # compute target q
             next_action = self.agent.get_action(next_action_key, (q_score_params, q1_params, q2_params), next_obs)
-            q1_target = self.agent.q(target_q1_params, next_obs, next_action)
-            q2_target = self.agent.q(target_q2_params, next_obs, next_action)
+            q1_target = self.agent.q({'params': target_q1_params}, next_obs, next_action)
+            q2_target = self.agent.q({'params': target_q2_params}, next_obs, next_action)
             q_target = jnp.minimum(q1_target, q2_target)
             q_backup = reward + (1 - done) * self.gamma * q_target
 
             # update q
-            def q_loss_fn(q_params: hk.Params) -> jax.Array:
-                q = self.agent.q(q_params, obs, action)
+            def q_loss_fn(q_params: dict) -> jax.Array:
+                q = self.agent.q({'params': q_params}, obs, action)
                 q_loss = jnp.mean((q - q_backup) ** 2)
                 return q_loss
 
@@ -73,10 +73,10 @@ class QSM(Algorithm):
             q2_params = optax.apply_updates(q2_params, q2_update)
 
             # update q_score
-            def q_score_loss_fn(q_score_params: hk.Params) -> jax.Array:
+            def q_score_loss_fn(q_score_params: dict) -> jax.Array:
                 q1, q1_score = self.agent.get_q_score_from_gradient(q1_params, obs, action)
                 q2, q2_score = self.agent.get_q_score_from_gradient(q2_params, obs, action)
-                q_score = self.agent.q_score(q_score_params, obs, action)
+                q_score = self.agent.q_score({'params': q_score_params}, obs, action)
                 q_minimum_score = jnp.where(q1.reshape(-1, 1) < q2.reshape(-1, 1), q1_score, q2_score)
                 q_score_loss = jnp.mean((q_score - q_minimum_score) ** 2)
                 return q_score_loss, (q1, q2)

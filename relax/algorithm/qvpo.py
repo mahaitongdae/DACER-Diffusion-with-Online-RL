@@ -89,19 +89,19 @@ class QVPO(Algorithm):
             reward *= self.reward_scale
 
             def get_min_q(s, a):
-                q1 = self.agent.q(q1_params, s, a)
-                q2 = self.agent.q(q2_params, s, a)
+                q1 = self.agent.q({'params': q1_params}, s, a)
+                q2 = self.agent.q({'params': q2_params}, s, a)
                 q = jnp.minimum(q1, q2)
                 return q
 
             next_action = self.agent.get_action(next_eval_key, (policy_params, q1_params, q2_params), next_obs)
-            q1_target = self.agent.q(target_q1_params, next_obs, next_action)
-            q2_target = self.agent.q(target_q2_params, next_obs, next_action)
+            q1_target = self.agent.q({'params': target_q1_params}, next_obs, next_action)
+            q2_target = self.agent.q({'params': target_q2_params}, next_obs, next_action)
             q_target = jnp.minimum(q1_target, q2_target)  # - jnp.exp(log_alpha) * next_logp
             q_backup = reward + (1 - done) * self.gamma * q_target
 
-            def q_loss_fn(q_params: hk.Params) -> jax.Array:
-                q = self.agent.q(q_params, obs, action)
+            def q_loss_fn(q_params: dict) -> jax.Array:
+                q = self.agent.q({'params': q_params}, obs, action)
                 q_loss = jnp.mean((q - q_backup) ** 2)
                 return q_loss, q
 
@@ -111,9 +111,9 @@ class QVPO(Algorithm):
             q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
             q1_params = optax.apply_updates(q1_params, q1_update)
             q2_params = optax.apply_updates(q2_params, q2_update)
+            new_action = self.agent.get_action(new_eval_key, (policy_params, q1_params, q2_params), obs)
 
             def policy_loss_fn(policy_params, q1_params, q2_params) -> jax.Array:
-                new_action = self.agent.get_action(new_eval_key, (policy_params, q1_params, q2_params), obs)
                 q_mean = get_min_q(obs, new_action)
                 q_weights = jnp.where(q_mean > 1., q_mean, jnp.zeros_like(q_mean))
                 # q_weights = q_weights
@@ -131,7 +131,7 @@ class QVPO(Algorithm):
                 t = jax.random.randint(diffusion_time_key, (total_obs.shape[0],), 0, self.agent.num_timesteps)
 
                 def denoiser(t, x):
-                    return self.agent.policy(policy_params, total_obs, x, t)
+                    return self.agent.policy({'params': policy_params}, total_obs, x, t)
 
                 loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                                                             jax.lax.stop_gradient(total_actions))

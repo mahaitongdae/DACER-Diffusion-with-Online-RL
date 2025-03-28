@@ -1,0 +1,10 @@
+alg_name: qsm
+diffusion_hidden_dim: 256
+diffusion_steps: 20
+hidden_dim: 256
+policy_hidden_dim: 256
+hidden_num: 3
+lr: 0.0003
+lr_schedule_end: 3.0e-05
+num_particles: 32
+
