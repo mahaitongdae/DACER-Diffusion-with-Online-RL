@@ -1,9 +1,9 @@
 total_evals: 10
 start_step: 30000
-suffix: test_use_atp1
+suffix: rebuttal_run
 total_step: 1000000
 seed: 100
-env: HalfCheetah-v4
+env: Humanoid-v4
 debug: false
 num_vec_envs: 0
 

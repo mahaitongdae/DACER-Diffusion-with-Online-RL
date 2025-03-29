@@ -3,9 +3,9 @@ start_step: 30000
 suffix: rebuttal_run
 total_step: 1000000
 seed: 100
-env: HalfCheetah-v4
+env: dm_control_walker_run-v0
 debug: false
-num_vec_envs: 0
+num_vec_envs: 5
 
 defaults:
  - _self_
@@ -13,4 +13,7 @@ defaults:
 
 hydra:
   run:
-    dir: /n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs/logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix} # wlayer${alg.w_hidden_activation}_
+    dir: /n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs/logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix}_${alg.alpha_lr}_${alg.num_particles} # wlayer${alg.w_hidden_activation}_
+  sweep:
+    dir:  /n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs/logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix}
+    subdir: ${hydra.job.num}

@@ -10,6 +10,6 @@ lr: 0.0003
 lr_schedule_end: 3.0e-05
 noise_scale: 0.1
 num_particles: 32
-target_entropy_scale: 1.5
+target_entropy_scale: 0.9
 use_ema_policy: true
 
