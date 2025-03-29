@@ -99,7 +99,7 @@ class DACER(Algorithm):
 
             # update q
             def q_loss_fn(q_params: hk.Params, mean_q_std: float) -> jax.Array:
-                q_mean, q_std = self.agent.q(q_params, obs, action)
+                q_mean, q_std = self.agent.q({'params': q_params}, obs, action)
                 new_mean_q_std = jnp.mean(q_std)
                 mean_q_std = jax.lax.stop_gradient(
                     (mean_q_std == -1.0) * new_mean_q_std +
@@ -135,8 +135,8 @@ class DACER(Algorithm):
             # update policy
             def policy_loss_fn(policy_params) -> jax.Array:
                 new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha), obs)
-                q1_mean, _ = self.agent.q(q1_params, obs, new_action)
-                q2_mean, _ = self.agent.q(q2_params, obs, new_action)
+                q1_mean, _ = self.agent.q({'params': q1_params}, obs, new_action)
+                q2_mean, _ = self.agent.q({'params': q2_params}, obs, new_action)
                 q_mean = jnp.minimum(q1_mean, q2_mean)
                 policy_loss = jnp.mean(-q_mean)
                 return policy_loss

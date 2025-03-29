@@ -41,7 +41,7 @@ class QNet(nn.Module):
     def __call__(self, obs: jax.Array, act: jax.Array) -> jax.Array:
         input = jnp.concatenate((obs, act), axis=-1)
         return mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(input)
-    
+
 @dataclass
 class ReprQNet(nn.Module):
     hidden_sizes: Sequence[int]
@@ -54,7 +54,7 @@ class ReprQNet(nn.Module):
         repr = flax.linen.LayerNorm()(repr)
         return mlp(self.hidden_sizes, 1, self.activation, self.output_activation, squeeze_output=True)(repr)
         # return nn.Dense(1, use_bias=False)(repr).squeeze()
-    
+
 @dataclass
 class RandomMuNet(nn.Module):
     hidden_sizes: Sequence[int]
@@ -75,18 +75,18 @@ class RandomMuNet(nn.Module):
         init_fn_bias_rand_func = nn.initializers.constant(0.)
 
         # Apply initialization to a Dense layer
-        x = nn.Dense(features=self.random_feature_dim, 
-                     kernel_init=init_fn_kernel_fourier, 
+        x = nn.Dense(features=self.random_feature_dim,
+                     kernel_init=init_fn_kernel_fourier,
                      bias_init=init_fn_bias_fourier)(obs)
         x = jnp.cos(x)
-        x = nn.Dense(features=self.repr_dim, 
+        x = nn.Dense(features=self.repr_dim,
                      kernel_init=init_fn_kernel_rand_func,
                      bias_init=init_fn_bias_rand_func)(x)  # Output layer
         if self.out_normalized:
             return x / jnp.sqrt(self.repr_dim)
         else:
             return x
-    
+
 @dataclass
 class RFFQNet(nn.Module):
     hidden_dim: int
@@ -100,7 +100,7 @@ class RFFQNet(nn.Module):
         x = nn.elu(nn.Dense(self.hidden_dim)(x))
         x = nn.Dense(1)(x)
         return x
-    
+
 @dataclass
 class PhiNetMLP(nn.Module):
     hidden_sizes: Sequence[int]
@@ -119,7 +119,7 @@ class PhiNetMLP(nn.Module):
             return out / jnp.sqrt(self.repr_dim)
         else:
             return out
-    
+
 @dataclass
 class MuNetMLP(nn.Module):
     hidden_sizes: Sequence[int]
@@ -162,6 +162,7 @@ class DistributionalQNet2(nn.Module):
     output_activation: Activation = Identity
     name: str = None
 
+    @nn.compact
     def __call__(self, obs: jax.Array, act: jax.Array) -> Tuple[jax.Array, jax.Array]:
         input = jnp.concatenate((obs, act), axis=-1)
         output = mlp(self.hidden_sizes, 2, self.activation, self.output_activation)(input)
