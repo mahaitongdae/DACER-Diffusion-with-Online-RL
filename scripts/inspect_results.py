@@ -8,6 +8,7 @@ import pandas as pd
 
 from matplotlib import pyplot as plt
 import seaborn as sns
+import numpy as np
 
 sns.set_style('whitegrid')
 sns.set_context(font_scale=1.2)
@@ -32,12 +33,13 @@ def plot_mean(patterns_dict: Dict, env_name, path=None, fig_name = None,
             df.loc[:, ('Algorithm')] = alg
             dfs.append(df)
             df.rename(columns={'avg_ret': 'Return'}, inplace=True)
-            df['Iterations'] = df['step'] / 5
+            df['Iterations'] = df['step']
 
     total_df = pd.concat(dfs, ignore_index=True)
     if max_steps is not None:
         total_df = total_df[total_df['step'] < max_steps]
-    sns.lineplot(data=total_df, x='Iterations', y='Return', hue='Algorithm')
+    sns.lineplot(data=total_df, x='Iterations', y='Return', hue='Algorithm',legend=False)
+    # plt.plot(total_df['Iterations'], total_df['Return'], label='Algorithm')
     if title is not None:
         plt.title(title)
     else:
@@ -81,6 +83,7 @@ def load_best_results(pattern, env_name, show_df=False,
     if show_df:
         print(total_df.to_markdown())
     print(f"${total_df['avg_ret'].mean():.{display_digits}f} \pm {total_df['avg_ret'].std():.{display_digits}f}$")
+    # print(f"${total_df['avg_ret'].mean():.{display_digits}f} \pm {total_df['std_ret'].mean():.{display_digits}f}$")
     return total_df
 
 if __name__ == "__main__":
