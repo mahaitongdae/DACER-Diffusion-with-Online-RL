@@ -9,6 +9,7 @@ from relax.network.blocks_flax import Activation, DACERPolicyNet, QNet
 from relax.network.common import WithSquashedGaussianPolicy
 from relax.utils.diffusion import GaussianDiffusion
 from relax.utils.jax_utils import random_key_from_data
+from numpyro.distributions import Normal
 
 class Diffv2Params(NamedTuple):
     q1: dict
@@ -56,8 +57,11 @@ class SDACNet:
             acts, qs = jax.vmap(sample)(keys)
             q_best_ind = jnp.argmax(qs, axis=0, keepdims=True)
             act = jnp.take_along_axis(acts, q_best_ind[..., None], axis=0).squeeze(axis=0)
-        act = act + jax.random.normal(noise_key, act.shape) * jnp.exp(log_alpha) * self.noise_scale
-        return act
+        std = jnp.exp(log_alpha) * self.noise_scale
+        noise = jax.random.normal(noise_key, act.shape) * std
+        act = act + noise
+        log_prob = Normal(jnp.zeros_like(act), std).log_prob(noise)
+        return act, log_prob.sum(axis=-1)
 
     def get_batch_actions(self, key: jax.Array, policy_params: dict, obs: jax.Array, q_func: Callable) -> jax.Array:
         batch_flatten_obs = obs.repeat(self.num_particles, axis=0)
@@ -77,7 +81,7 @@ class SDACNet:
         policy_params, log_alpha, q1_params, q2_params = policy_params
         log_alpha = -jnp.inf
         policy_params = (policy_params, log_alpha, q1_params, q2_params)
-        return self.get_action(key, policy_params, obs)
+        return self.get_action(key, policy_params, obs)[0]
 
     def q_evaluate(
         self, key: jax.Array, q_params: dict, obs: jax.Array, act: jax.Array

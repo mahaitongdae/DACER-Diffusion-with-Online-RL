@@ -107,10 +107,10 @@ class SDAC(Algorithm):
             #     q = jnp.minimum(q1, q2)
             #     return q
 
-            next_action = self.agent.get_action(next_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
+            next_action, next_logp = self.agent.get_action(next_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
             q1_target = self.agent.q({'params': target_q1_params}, next_obs, next_action)
             q2_target = self.agent.q({'params': target_q2_params}, next_obs, next_action)
-            q_target = jnp.minimum(q1_target, q2_target)  # - jnp.exp(log_alpha) * next_logp
+            q_target = jnp.minimum(q1_target, q2_target)  - jnp.exp(log_alpha) * 0.1 * next_logp
             q_backup = reward + (1 - done) * self.gamma * q_target
 
             def q_loss_fn(q_params: hk.Params) -> jax.Array:
@@ -215,6 +215,7 @@ class SDAC(Algorithm):
                 "scale_q_std": jnp.std(scaled_q),
                 "running_q_mean": new_running_mean,
                 "running_q_std": new_running_std,
+                "next_logp": jnp.mean(next_logp),
                 "entropy_approx": 0.5 * self.agent.act_dim * jnp.log( 2 * jnp.pi * jnp.exp(1) * (0.1 * jnp.exp(log_alpha)) ** 2),
             }
             return state, info
@@ -233,5 +234,5 @@ class SDAC(Algorithm):
             pickle.dump(policy, f)
 
     def get_action(self, key: jax.Array, obs: np.ndarray) -> np.ndarray:
-        action = self._get_action(key, self.get_policy_params_to_save(), obs)
+        action, _ = self._get_action(key, self.get_policy_params_to_save(), obs)
         return np.asarray(action)
