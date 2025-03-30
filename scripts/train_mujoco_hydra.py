@@ -140,7 +140,9 @@ def run(args: DictConfig):
     else:
         raise ValueError(f"Invalid algorithm {alg_args.alg_name}!")
 
-    exp_dir = Path(HydraConfig.get().run.dir) # PROJECT_ROOT / "logs" / args.env / (alg_args.alg_name + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
+    is_multirun = HydraConfig.get().mode == "MULTIRUN"
+    exp_dir = Path(HydraConfig.get().sweep.dir) / HydraConfig.get().sweep.subdir if is_multirun else Path(HydraConfig.get().run.dir) # PROJECT_ROOT / "logs" / args.env / (alg_args.alg_name + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
+    print(HydraConfig.get().mode, "saving to", str(exp_dir))
     trainer = OffPolicyTrainer(
         env=env,
         algorithm=algorithm,
