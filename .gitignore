@@ -21,3 +21,4 @@ __pycache__/
 *.ipynb
 *.sh
 /relax/evaluate/
+/multirun/
