@@ -15,6 +15,8 @@ def register_dm_control_envs():
         ("walker", "stand"),
         ("walker", "run"),
         ("walker", "walk"),
+        ("fish", "swim"),
+        ("finger", "spin")
     ]
 
     for domain, task in dm_control_envs:
