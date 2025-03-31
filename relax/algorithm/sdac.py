@@ -110,7 +110,7 @@ class SDAC(Algorithm):
             next_action, next_logp = self.agent.get_action(next_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
             q1_target = self.agent.q({'params': target_q1_params}, next_obs, next_action)
             q2_target = self.agent.q({'params': target_q2_params}, next_obs, next_action)
-            q_target = jnp.minimum(q1_target, q2_target)  - jnp.exp(log_alpha) * 0.1 * next_logp
+            q_target = jnp.minimum(q1_target, q2_target)  # - jnp.exp(log_alpha) * 0.1 * next_logp
             q_backup = reward + (1 - done) * self.gamma * q_target
 
             def q_loss_fn(q_params: hk.Params) -> jax.Array:
