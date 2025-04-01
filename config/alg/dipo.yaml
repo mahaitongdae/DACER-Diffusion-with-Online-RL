@@ -1,4 +1,4 @@
-alg_name: sdac
+alg_name: dipo
 alpha_lr: 7e-3
 delay_alpha_update: 250
 diffusion_hidden_dim: 256
