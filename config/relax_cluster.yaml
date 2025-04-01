@@ -13,7 +13,7 @@ defaults:
 
 hydra:
   run:
-    dir: /n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs/logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix}_${alg.alpha_lr}_${alg.num_particles} # wlayer${alg.w_hidden_activation}_
+    dir: /n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs/logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix} # /${alg.alpha_lr}/${alg.num_particles} # wlayer${alg.w_hidden_activation}_
   sweep:
     dir:  /n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs/logs/${env}/${alg.alg_name}_${now:%Y-%m-%d_%H-%M-%S}_s${seed}_${suffix}
-    subdir: ${hydra.job.num}
+    subdir: ${hydra.job.num} # ${alg.alpha_lr}_${alg.num_particles}  # ${hydra.job.num}
