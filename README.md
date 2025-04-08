@@ -37,7 +37,7 @@ This is the suppliment material for ICML 2025 submission
 ## Installation
 
 ```bash
-# Create environemnt
+# Create environment
 conda create -n relax python=3.9 numpy tqdm tensorboardX matplotlib scikit-learn black snakeviz ipykernel setproctitle numba
 conda activate relax
 
@@ -52,10 +52,15 @@ pip install -e .
 
 
 ## Run
+
+I update the hyperparameters to be managed by Hydra.*
+
 ```bash
 # Run one experiment
-XLA_FLAGS='--xla_gpu_deterministic_ops=true' CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_MEM_FRACTION=.1 python scripts/train_mujoco.py --alg sdac --seed 100
+XLA_FLAGS='--xla_gpu_deterministic_ops=true' CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_MEM_FRACTION=.1 python scripts/train_mujoco_hydra.py
 ```
+
+The default parameters are stored in `./config/relax.yaml`. Please refer to [Hydra documentation](https://hydra.cc/docs/tutorials/basic/your_first_app/simple_cli/) for the usage.
 
 ## Visualize results
 ```python
