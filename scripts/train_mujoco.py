@@ -33,7 +33,7 @@ from relax.utils.log_diff import log_git_details
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alg", type=str, default="diffv2")
+    parser.add_argument("--alg", type=str, default="diffv2_rev")
     parser.add_argument("--env", type=str, default="HalfCheetah-v4")
     parser.add_argument("--suffix", type=str, default="test_use_atp1")
     parser.add_argument("--num_vec_envs", type=int, default=5)
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     gelu = partial(jax.nn.gelu, approximate=False)
 
-    if args.alg == 'diffv2':
+    if args.alg == 'diffv2_rev':
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         total_step=args.total_step,
         sample_per_iteration=1,
         evaluate_env=eval_env,
-        save_policy_every=int(args.total_step / 40),
+        save_policy_every=int(args.total_step / 20),
         warmup_with="random",
         log_path=exp_dir,
     )
