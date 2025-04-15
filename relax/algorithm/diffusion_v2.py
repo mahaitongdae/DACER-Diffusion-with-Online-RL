@@ -120,26 +120,30 @@ class Diffv2(Algorithm):
 
             (q1_loss, q1), q1_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q1_params)
             (q2_loss, q2), q2_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q2_params)
-            q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
-            q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
-            q1_params = optax.apply_updates(q1_params, q1_update)
-            q2_params = optax.apply_updates(q2_params, q2_update)
+            # q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
+            # q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
+            # q1_params = optax.apply_updates(q1_params, q1_update)
+            # q2_params = optax.apply_updates(q2_params, q2_update)
 
 
             prev_entropy = state.entropy if hasattr(state, 'entropy') else jnp.float32(0.0)
 
             action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
+            diff_key1, diff_key2 = jax.random.split(diffusion_noise_key, 2)
+            t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
+            noise1 = jax.random.normal(diffusion_noise_key, action.shape)
+            tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, action, noise1)
 
             def policy_loss_fn(policy_params) -> jax.Array:
                 
                 # q_weights = q_weights
                 def denoiser(t, x):
                     return self.agent.policy(policy_params, next_obs, x, t)
-                t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
+                
                 # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                 #                                             jax.lax.stop_gradient(next_action))
-                noise = jax.random.normal(key, action.shape)
-                recon = self.agent.diffusion.get_recon(t, action, noise).clip(-1, 1)
+                noise2 = jax.random.normal(diffusion_noise_key, action.shape)
+                recon = self.agent.diffusion.get_recon(t, tilde_at, noise1).clip(-1, 1)
                 q_min = get_min_q(obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
                 # norm_q = (q_min - running_mean) / running_std
@@ -148,11 +152,11 @@ class Diffv2(Algorithm):
                 scaled_q = norm_q # / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
                 # t_weights = self.agent.diffusion.beta_schedule().alphas_cumprod[t] ** 3
-                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise,
+                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise2,
                                                                             q_weights, #  * t_weights
                                                                             denoiser,
                                                                             t,
-                                                                            action,)
+                                                                            tilde_at,)
 
                 return loss, (q_weights, scaled_q, q_mean, q_std)
 

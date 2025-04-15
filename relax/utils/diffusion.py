@@ -92,7 +92,7 @@ class GaussianDiffusion:
     
     def get_recon(self, t: int, x: jax.Array, noise: jax.Array):
         B = self.beta_schedule()
-        x_recon = x * B.sqrt_recip_alphas_cumprod[t][:, jnp.newaxis] + noise * B.sqrt_recipm1_alphas_cumprod[t][:, jnp.newaxis]
+        x_recon = x * B.sqrt_recip_alphas_cumprod[t][:, jnp.newaxis] - noise * B.sqrt_recipm1_alphas_cumprod[t][:, jnp.newaxis]
         return x_recon
 
     def p_sample(self, key: jax.Array, model: DiffusionModel, shape: Tuple[int, ...]) -> jax.Array:
