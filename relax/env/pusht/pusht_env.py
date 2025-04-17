@@ -390,7 +390,7 @@ class PushTEnv(gym.Env):
         self.space.add(*walls)
 
         # Add agent, block, and goal zone.
-        self.agent = self.add_circle((256, 400), 15)
+        self.agent = self.add_circle((256, 400), 7.5)
         if shape_type == 'tee':
             self.block = self.add_tee((256, 300), 0)
         elif shape_type == 'cee':
