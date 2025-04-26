@@ -23,7 +23,7 @@ def evaluate(env, policy_fn, policy_params, num_episodes, video_name=None, seed=
 
     for s in range(num_episodes):
         frames = []
-        obs, _ = env.reset(seed=s+seed)
+        obs, _ = env.reset(seed=s+seed, options={'curriculum_level': 1.0})
         ep_len = 0
         ep_ret = 0.0
         obses_list = []
@@ -56,17 +56,18 @@ def evaluate(env, policy_fn, policy_params, num_episodes, video_name=None, seed=
 
 if __name__ == "__main__":
     import time
-    policy_root = Path('/home/haitong/PycharmProjects/DACER-Diffusion-with-Online-RL/logs/pushtcurriculum-v0/sdac_2025-03-12_14-26-15_s100_test_env')
+    policy_root = Path('/home/naliseas-workstation/Documents/haitong/DACER-Diffusion-with-Online-RL/logs/pushtcurriculum-v1/sac_2025-04-26_11-20-18_s100_test_use_atp1')
     env_name = str(policy_root).split('/')[-2]
-    if env_name.startswith('dm_control'):
-        from relax.env.dmc.register import register_dm_control_envs
-        register_dm_control_envs()
+    # if env_name.startswith('dm_control'):
+    #     from relax.env.dmc.register import register_dm_control_envs
+    #     register_dm_control_envs()
     if env_name.startswith('pusht'):
         from relax.env.pusht.pusht_env import PushTEnv
 
     master_rng = np.random.default_rng(0)
     env_seed, env_action_seed, policy_seed = map(int, master_rng.integers(0, 2**32 - 1, 3))
-    env, _, _ = create_env("pusht-v0", env_seed, env_action_seed) #, render_mode='rgb_array'
+    env, _, _ = create_env("pushtcurriculum-v1", env_seed, env_action_seed) #, render_mode='rgb_array'
+    # env.set_curriculum_level(1.0)
 
     policy = PersistFunction.load(policy_root / "deterministic.pkl")
     @jax.jit
@@ -74,7 +75,7 @@ if __name__ == "__main__":
         return policy(policy_params, obs).clip(-1, 1)
 
     step = int(1e6)
-    policy_path = "policy-200000-200000.pkl"
+    policy_path = "policy-2300000-460000.pkl"
     with open(policy_root / policy_path, "rb") as f:
         policy_params = pickle.load(f)
 

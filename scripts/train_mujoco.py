@@ -61,6 +61,9 @@ if __name__ == "__main__":
     if args.debug:
         from jax import config
         config.update("jax_disable_jit", True)
+        
+    if 'pusht' in args.env:
+        from relax.env.pusht.pusht_env import PushTEnv
 
     master_seed = args.seed
     master_rng, _ = seeding(master_seed)

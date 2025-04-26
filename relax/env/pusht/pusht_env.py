@@ -565,8 +565,13 @@ class PushTCurriculumEnv(PushTEnv):
             logging.log(logging.INFO, f"update curriculum level to {self.curriculum_level:.3f}")
             self.success_numbers = 0
 
+    def set_curriculum_level(self, level):
+        assert 0 <= level <= 1, "level should be in [0, 1]"
+        self.curriculum_level = level
 
     def reset(self, seed=None, options=None):
+        if 'curriculum_level' in options.keys():
+            self.curriculum_level = options['curriculum_level']
         self.update_curriculum_level()
         return super().reset(seed=seed, options=options)
 
