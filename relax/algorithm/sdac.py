@@ -45,6 +45,7 @@ class SDAC(Algorithm):
         reward_scale: float = 0.2,
         num_samples: int = 200,
         use_ema: bool = True,
+        total_grad_steps: int = 200000,
     ):
         self.agent = agent
         self.gamma = gamma
@@ -57,8 +58,8 @@ class SDAC(Algorithm):
         lr_schedule = optax.schedules.linear_schedule(
             init_value=lr,
             end_value=lr_schedule_end,
-            transition_steps=int(25e4),
-            transition_begin=int(2.5e4),
+            transition_steps=int(0.12 * total_grad_steps),
+            transition_begin=int(0.5 * total_grad_steps),
         )
         self.policy_optim = optax.adam(learning_rate=lr_schedule)
         self.alpha_optim = optax.adam(alpha_lr)

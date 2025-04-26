@@ -1,5 +1,5 @@
 import os
-os.environ["MUJOCO_GL"] = "osmesa"
+os.environ["MUJOCO_GL"] = "egl"
 
 import numpy as np
 import gymnasium as gym
@@ -70,7 +70,7 @@ class DMControlToGymWrapper(gym.Env):
 # Example usage:
 if __name__ == "__main__":
     env = DMControlToGymWrapper("quadruped", "walk")
-    
+
     obs, info = env.reset()
     print("Initial observation:", obs)
 
