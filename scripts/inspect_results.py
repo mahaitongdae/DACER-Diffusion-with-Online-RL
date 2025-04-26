@@ -37,7 +37,7 @@ def plot_mean(patterns_dict: Dict, env_name, path=None, fig_name = None,
     total_df = pd.concat(dfs, ignore_index=True)
     if max_steps is not None:
         total_df = total_df[total_df['step'] < max_steps]
-    sns.lineplot(data=total_df, x='Iterations', y='Return', hue='Algorithm')
+    sns.lineplot(data=total_df, x='Iterations', y='Return', hue='Algorithm') # ,legend=False
     if title is not None:
         plt.title(title)
     else:
@@ -49,7 +49,7 @@ def plot_mean(patterns_dict: Dict, env_name, path=None, fig_name = None,
         plt.savefig(fig_name)
     else:
         plt.show()
-    
+
 
 
 def load_best_results(pattern, env_name, show_df=False,
@@ -60,11 +60,11 @@ def load_best_results(pattern, env_name, show_df=False,
     else:
         package_path = Path(path)
         logdir = package_path / env_name
-    
+
     # pattern = r".*diffv2.*noise_scale_0\.0\d$"
     # pattern = r".*diffv2.*noise_scale_0\.09"
     # pattern = r".*qsm.*01-07.*qsm_lr_schedule$"
-    
+
     matching_dir = [s for s in logdir.iterdir() if re.match(pattern, str(s))]
     dfs = []
     for dir in matching_dir:
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     # patterns_dict = {
     #                 #  'ema': r".*diffv2.*01-07.*diffv2_ema$",
     #                  'sampling_ema': r".*diffv2.*01-07.*diffv2_sampling_with_ema$",
-    #                 #  'lr_schedule': r".*diffv2.*01-07.*diffv2_lr_schedule$", 
+    #                 #  'lr_schedule': r".*diffv2.*01-07.*diffv2_lr_schedule$",
     #                 #  'qsm_lr': r".*qsm.*01-07.*qsm_lr_schedule$",
     #                  'qsm': r".*qsm.*01-07.*atp1$"}
     patterns_dict = {

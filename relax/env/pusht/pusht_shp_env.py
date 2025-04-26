@@ -71,7 +71,8 @@ class PushTShpCurriculumEnv(PushTCurriculumEnv):
                  render_action = True,
                  render_size = 96,
                  reset_to_state = None,
-                 curriculum_level=0.0
+                 curriculum_level=0.0,
+                 render_mode=None,
                  ):
         super().__init__(legacy=legacy, block_cog=block_cog, damping=damping,
                          render_action=render_action, render_size=render_size,

@@ -70,6 +70,7 @@ def run(args: DictConfig):
     gelu = partial(jax.nn.gelu, approximate=False)
 
     if alg_args.alg_name == 'sdac':
+        total_grad_steps = args.total_step if args.num_vec_envs == 0 else int(args.total_step / args.num_vec_envs)
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_sdac_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
@@ -80,7 +81,7 @@ def run(args: DictConfig):
         algorithm = SDAC(agent, params, lr=alg_args.lr, alpha_lr=alg_args.alpha_lr,
                            delay_alpha_update=alg_args.delay_alpha_update,
                              lr_schedule_end=alg_args.lr_schedule_end,
-                             use_ema=alg_args.use_ema_policy)
+                             use_ema=alg_args.use_ema_policy, total_grad_steps=total_grad_steps)
     elif alg_args.alg_name == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=alg_args.num_particles)
         algorithm = QSM(agent, params, lr=alg_args.lr, lr_schedule_end=alg_args.lr_schedule_end)
@@ -102,7 +103,7 @@ def run(args: DictConfig):
         w_hidden_sizes = [alg_args.hidden_dim] * alg_args.w_hidden_num
         policy_hidden_sizes = [alg_args.policy_hidden_dim] * alg_args.hidden_num
         agent, params = create_rand_sac_net(init_network_key, obs_dim, act_dim, repr_dim,
-                                            hidden_sizes, w_hidden_sizes, 
+                                            hidden_sizes, w_hidden_sizes,
                                             policy_hidden_sizes=policy_hidden_sizes,
                                             activation=gelu, w_activation=gelu,
                                             mu_random_feature_sigma=sigma,
@@ -160,7 +161,7 @@ def run(args: DictConfig):
     log_git_details(log_file=os.path.join(exp_dir, 'git.diff'))
 
     # Save the arguments to a YAML file
-    # args_dict = cfg
+    # args_dict = args
     # with open(os.path.join(exp_dir, 'config.yaml'), 'w') as yaml_file:
     #     yaml.dump(args_dict, yaml_file)
     trainer.run(train_key)

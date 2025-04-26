@@ -62,7 +62,7 @@ def evaluate(env, policy_fn, policy_params, num_episodes, video_name=None, seed=
 
 if __name__ == "__main__":
     import time
-    policy_root = Path('/n/home05/haitongma/src/DACER-Diffusion-with-Online-RL/logs/Ant-v4/diffv2_2025-01-16_15-27-10_s100_large_scale_run')
+    policy_root = Path('/home/haitong/PycharmProjects/DACER-Diffusion-with-Online-RL/logs/pushtcurriculum-v1/sdac_2025-03-15_16-28-36_s100_mask_multitask')
     env_name = str(policy_root).split('/')[-2]
     if env_name.startswith('dm_control'):
         from relax.env.dmc.register import register_dm_control_envs
@@ -80,9 +80,9 @@ if __name__ == "__main__":
         return policy(policy_params, obs).clip(-1, 1)
 
     step = int(1e6)
-    policy_path = "policy-1000000-200000.pkl"
+    policy_path = "policy-4000000-800000.pkl"
     with open(policy_root / policy_path, "rb") as f:
         policy_params = pickle.load(f)
 
-    ep_len_list, ep_ret_list, _ = evaluate(env, policy_fn, policy_params, 1, video_name=str(policy_root / 'visu'), seed=1)
+    ep_len_list, ep_ret_list, _ = evaluate(env, policy_fn, policy_params, 5, video_name=str(policy_root / 'visu'), seed=1)
     print(ep_ret_list)
