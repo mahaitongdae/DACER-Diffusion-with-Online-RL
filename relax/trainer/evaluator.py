@@ -19,7 +19,7 @@ def evaluate(env, policy_fn, policy_params, num_episodes):
     ep_len_list = []
     ep_ret_list = []
     for _ in range(num_episodes):
-        obs, _ = env.reset()
+        obs, _ = env.reset(options={'curriculum_level': 1.0}) 
         ep_len = 0
         ep_ret = 0.0
         while True:
@@ -33,6 +33,29 @@ def evaluate(env, policy_fn, policy_params, num_episodes):
         ep_ret_list.append(ep_ret)
     return ep_len_list, ep_ret_list
 
+def evaluate_with_success_rate(env, policy_fn, policy_params, num_episodes):
+    ep_len_list = []
+    ep_ret_list = []
+    success_list = []
+    for _ in range(num_episodes):
+        obs, _ = env.reset() # options={'curriculum_level': 1.0}
+        ep_len = 0
+        ep_ret = 0.0
+        while True:
+            act = policy_fn(policy_params, obs)
+            obs, reward, terminated, truncated, _ = env.step(act)
+            ep_len += 1
+            ep_ret += reward
+            if terminated or truncated:
+                if terminated:
+                    success_list.append(1.0)
+                else:
+                    success_list.append(0.0)
+                break
+        ep_len_list.append(ep_len)
+        ep_ret_list.append(ep_ret)
+    return ep_len_list, ep_ret_list, success_list
+
 class Logger(object):
 
 	def __init__(self, log_dir):
@@ -45,6 +68,19 @@ class Logger(object):
 		with open(self.path, mode='a', newline='') as f:
 			writer = csv.writer(f)
 			writer.writerow([step, avg_ret, std_ret])
+   
+class LoggerWithSuccessRate(object):
+
+	def __init__(self, log_dir):
+		self.path = os.path.join(log_dir, 'log.csv')
+		with open(self.path, mode='w', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow(['step', 'avg_ret', 'std_ret', 'avg_suc_rate', 'std_suc_rate'])
+
+	def log(self, step, avg_ret, std_ret, avg_suc_rate, std_suc_rate):
+		with open(self.path, mode='a', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow([step, avg_ret, std_ret, avg_suc_rate, std_suc_rate])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -69,7 +105,8 @@ if __name__ == "__main__":
         return policy(policy_params, obs).clip(-1, 1)
 
     # logger = SummaryWriter(args.policy_root)
-    logger = Logger(args.policy_root)
+    # logger = Logger(args.policy_root)
+    logger = LoggerWithSuccessRate(args.policy_root)
 
     while payload := sys.stdin.readline():
         step, policy_path = payload.strip().split(",", maxsplit=1)
@@ -77,13 +114,15 @@ if __name__ == "__main__":
         with open(policy_path, "rb") as f:
             policy_params = pickle.load(f)
 
-        ep_len_list, ep_ret_list = evaluate(env, policy_fn, policy_params, args.num_episodes)
+        # ep_len_list, ep_ret_list = evaluate(env, policy_fn, policy_params, args.num_episodes)
+        ep_len_list, ep_ret_list, success_list = evaluate_with_success_rate(env, policy_fn, policy_params, args.num_episodes)
 
         ep_len = np.array(ep_len_list)
         ep_ret = np.array(ep_ret_list)
+        success = np.array(success_list)
         # logger.add_scalar("evaluate/episode_length", ep_len_mean.mean(), step)
         # logger.add_scalar("evaluate/episode_return", ep_ret_mean.mean(), step)
         # # logger.add_histogram("evaluate/episode_length", ep_len_mean, step)
         # # logger.add_histogram("evaluate/episode_return", ep_ret_mean, step)
         # logger.flush()
-        logger.log(step, ep_ret.mean(), ep_ret.std())
+        logger.log(step, ep_ret.mean(), ep_ret.std(), success.mean(), success.std())

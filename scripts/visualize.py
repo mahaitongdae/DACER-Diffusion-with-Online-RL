@@ -23,12 +23,13 @@ def evaluate(env, policy_fn, policy_params, num_episodes, video_name=None, seed=
 
     for s in range(num_episodes):
         frames = []
-        obs, _ = env.reset(seed=s+seed, options={'curriculum_level': 1.0})
+        obs, _ = env.reset(seed=s+seed, options={'curriculum_level': 0.1}) # , 'shape_type': 'eye'
         ep_len = 0
         ep_ret = 0.0
         obses_list = []
         while True:
             act = policy_fn(policy_params, obs)
+            print(act)
             obs, reward, terminated, truncated, _ = env.step(act)
             ep_len += 1
             ep_ret += reward
@@ -56,7 +57,7 @@ def evaluate(env, policy_fn, policy_params, num_episodes, video_name=None, seed=
 
 if __name__ == "__main__":
     import time
-    policy_root = Path('/home/naliseas-workstation/Documents/haitong/DACER-Diffusion-with-Online-RL/logs/pushtcurriculum-v1/sac_2025-04-26_11-20-18_s100_test_use_atp1')
+    policy_root = Path('/home/naliseas-workstation/Documents/haitong/DACER-Diffusion-with-Online-RL/logs/pushtcurriculum-v1/sdac_2025-04-23_17-55-35_s100_test_use_atp1')
     env_name = str(policy_root).split('/')[-2]
     # if env_name.startswith('dm_control'):
     #     from relax.env.dmc.register import register_dm_control_envs
@@ -75,7 +76,7 @@ if __name__ == "__main__":
         return policy(policy_params, obs).clip(-1, 1)
 
     step = int(1e6)
-    policy_path = "policy-2300000-460000.pkl"
+    policy_path = "policy-4000000-800000.pkl"
     with open(policy_root / policy_path, "rb") as f:
         policy_params = pickle.load(f)
 

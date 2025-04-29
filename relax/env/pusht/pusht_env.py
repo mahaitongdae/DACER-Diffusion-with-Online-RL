@@ -115,12 +115,14 @@ class PushTEnv(gym.Env):
 
         # x, y, theta (in radians)
         if self.random_goal_pose:
-            lower = int(220 - 120 * curriculum_level)
-            upper = int(280 + 120 * curriculum_level)
+            # lower = int(220 - 120 * curriculum_level)
+            # upper = int(280 + 120 * curriculum_level)
+            lower = int(255 - 30 * curriculum_level)
+            upper = int(257 + 30 * curriculum_level)
             self.goal_pose = np.array([
                 rs.randint(lower, upper),
                 rs.randint(lower, upper),
-                (rs.randn() * 2 - 1) * np.pi * curriculum_level
+                (rs.rand() * 1 - 0.5) * np.pi * curriculum_level
             ])
         else:
             self.goal_pose = np.array([256, 256, 0.]) # np.pi/4
@@ -157,10 +159,18 @@ class PushTEnv(gym.Env):
         if action is not None:
             self.latest_action = action
             for i in range(n_steps):
+                # action = self.block.local_to_world(tuple(action))
+                th = self.goal_pose[-1]
+                # rotmat_blk = np.array([[r.x, -r.y],
+                #                         [r.y,  r.x]])
+                rotmat_blk = np.array([[np.cos(th), -np.sin(th)],
+                                       [np.sin(th), np.cos(th)]])  
+                action = np.reshape(action, [2, 1])
+                action = rotmat_blk @ action
                 # Step PD control.
                 # P control works too.
                 # self.agent.velocity = Vec2d(*(self.k_p * (action - self.agent.position)))
-                self.agent.velocity = Vec2d(*(self.k_p * action))
+                self.agent.velocity = Vec2d(*(self.k_p * action.squeeze()))
                 # acceleration = self.k_p * (action - self.agent.position) + self.k_v * (Vec2d(0, 0) - self.agent.velocity)
                 # self.agent.velocity += acceleration * dt
 
@@ -397,8 +407,15 @@ class PushTEnv(gym.Env):
             self.block = self.add_cee((256, 300), 0)
         elif shape_type == 'lee':
             self.block = self.add_lee((256, 300), 0)
+        elif shape_type == 'eye':
+            self.block = self.add_eye((256, 300), 0)
+        elif shape_type == 'eff':
+            self.block = self.add_eff((256, 300), 0)
+        elif shape_type == 'zee':
+            self.block = self.add_zee((256, 300), 0)
         else:
             raise ValueError(f'Unsupported shape {shape_type}')
+            
         self.goal_color = pygame.Color('LightGreen')
         self.debugging_color = pygame.Color('red')
 
@@ -528,12 +545,96 @@ class PushTEnv(gym.Env):
                      (-length / 2 + scale, scale)]
         vertices_ls = [vertices1, vertices2]
         return self.add_shape([0.5, 0.25], vertices_ls, position, angle, color, mask)
+    
+    # def add_eye(self, position, angle, scale=30, color='LightSlateGray', mask=pymunk.ShapeFilter.ALL_MASKS()):
+    #     length = 4
+    #     length *= scale
+    #     vertices1 = [(-length/2, scale),
+    #                  (length/2, scale),
+    #                  (length/2, 0),
+    #                  (-length/2, 0)]
+    #     vertices2 = [(-scale/2, scale),
+    #                  (-scale/2, length-scale),
+    #                  (scale/2, length-scale),
+    #                  (scale/2, scale)]
+    #     #vertices3 = np.array(vertices1) + np.array([0, length])
+    #     vertices3 = np.array(vertices1) + np.array([0, length-scale])
+    #     vertices_ls = [vertices1, vertices2, vertices3.tolist()]
+    #     return self.add_shape([0.5, 0.5], vertices_ls, position, angle, color, mask)
+    
+    def add_eff(self, position, angle, scale=30, color='LightSlateGray', mask=pymunk.ShapeFilter.ALL_MASKS()):
+        length = 4
+        length *= scale
+        vertices1 = [(-length / 2, scale),
+                     (length / 2, scale),
+                     (length / 2, 0),
+                     (-length / 2, 0)]
+
+        vertices2 = [(-length / 2, scale),
+                     (-length / 2, length),
+                     (-length / 2 + scale, length),
+                     (-length / 2 + scale, scale)]
+
+        vertices3 = [(length / 2 - scale, scale),
+                     (length / 2 - scale, length),
+                     (0, length),
+                     (0, scale)]
+        vertices_ls = [vertices1, vertices2, vertices3]
+        return self.add_shape([0.5, 0.25, 0.25], vertices_ls, position, angle, color, mask)
+    
+    def add_eye(self, position, angle, scale=30, color='LightSlateGray', mask=pymunk.ShapeFilter.ALL_MASKS()):
+        length = 4
+        length *= scale
+        vertices1 = [(-length/2, scale),
+                     (length/2, scale),
+                     (length/2, 0),
+                     (-length/2, 0)]
+        vertices2 = [(-scale/2, scale),
+                     (-scale/2, length-scale),
+                     (scale/2, length-scale),
+                     (scale/2, scale)]
+        #vertices3 = np.array(vertices1) + np.array([0, length])
+        vertices3 = np.array(vertices1) + np.array([0, length-scale])
+        vertices_ls = [vertices1, vertices2, vertices3.tolist()]
+        return self.add_shape([0.5, 0.5], vertices_ls, position, angle, color, mask)
+    
+    # def add_zee(self, position, angle, scale=30, color='LightSlateGray', mask=pymunk.ShapeFilter.ALL_MASKS()):
+    #     length = 4
+    #     length *= scale
+    #     vertices1 = [(-length / 2, scale),
+    #                  (length / 2, scale),
+    #                  (length / 2, 0),
+    #                  (-length / 2, 0)]
+    #     vertices2 = [(-length / 2, scale),
+    #                  (-length / 2, length-scale),
+    #                  (-length / 2 + scale, length-scale),
+    #                  (-length / 2 + scale, scale)]
+    #     vertices3 = np.array(vertices1) + \
+    #         np.array([-length+scale, length-scale])
+    #     vertices_ls = [vertices1, vertices2, vertices3.tolist()]
+    #     return self.add_shape([0.5, 0.25], vertices_ls, position, angle, color, mask)
+    
+    def add_zee(self, position, angle, scale=30, color='LightSlateGray', mask=pymunk.ShapeFilter.ALL_MASKS()):
+        length = 4
+        length *= scale
+        vertices1 = [(-length / 2, scale),
+                     (0, scale),
+                     (0, 0),
+                     (-length / 2, 0)]
+        vertices2 = [(-length / 2, scale),
+                     (-length / 2, length-scale),
+                     (-length / 2 + scale, length-scale),
+                     (-length / 2 + scale, scale)]
+        vertices3 = np.array(vertices1) + \
+            np.array([-length/2+scale, length-scale])
+        vertices_ls = [vertices1, vertices2, vertices3.tolist()]
+        return self.add_shape([0.5, 0.25], vertices_ls, position, angle, color, mask)
 
 
 class PushTCurriculumEnv(PushTEnv):
 
     def __init__(self,
-                 success_number_every_stage=50,
+                 success_number_every_stage=300,
                  total_stage=10,
                  legacy=False,
                  block_cog=None,
@@ -589,7 +690,7 @@ if __name__ == "__main__":
     )
 
     env = gym.make('pusht-v0')
-    env.reset(options={'shape_type': 'lee'})
+    env.reset(options={'shape_type': 'eye'})
     for i in range(300):
         env.step(env.action_space.sample())
         env.render()
