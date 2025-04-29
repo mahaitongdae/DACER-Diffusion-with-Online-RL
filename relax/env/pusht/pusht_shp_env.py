@@ -158,8 +158,34 @@ class PushTShpCurriculumRandomGoalEnv(PushTCurriculumEnv):
         return super().reset(seed, options=options)
 
     def _get_obs(self):
-        obs = super()._get_obs()
+        obs = self.get_obs_rela_goal()
         obs = np.concatenate([obs, self.masks[self.shape_type]])
+        return obs.astype(np.float32)
+    
+    def get_obs_rela_goal(self):
+        # obs = np.array(
+        #     tuple(self.agent.position / self.window_size)
+        #     + tuple(self.block.position / self.window_size)
+        #     + ((self.block.angle % (2 * np.pi)) / (2*np.pi),))
+        # return obs.astype(np.float32)
+
+        # based on block frame
+        
+        theta = self.goal_pose[-1]
+        R_goal_from_world_inv = np.array([[np.cos(theta), -np.sin(theta)],
+                                      [np.sin(theta), np.cos(theta)]])
+        t_goal_from_world = np.array([self.goal_pose[0], self.goal_pose[1]]).reshape((2, 1))
+        def world_to_local(pos_world):
+            pos_world = pos_world.reshape((2, 1))
+            pos_goal_local = R_goal_from_world_inv @ pos_world - R_goal_from_world_inv @ t_goal_from_world
+            return pos_goal_local.flatten()
+        
+        agent_rel_pos = world_to_local(np.array([self.agent.position[0], self.agent.position[1]]))
+        block_rel_pos = world_to_local(np.array([self.block.position[0], self.block.position[1]]))
+        blk_real_angle = self.block.angle - self.goal_pose[2]
+        obs = np.array([agent_rel_pos[0] / self.rela_pos_scale, agent_rel_pos[1] / self.rela_pos_scale,
+                        block_rel_pos[0] / self.rela_pos_scale, block_rel_pos[1] / self.rela_pos_scale,
+                        np.sin(blk_real_angle), np.cos(blk_real_angle)])
         return obs.astype(np.float32)
 
 if __name__ == "__main__":
