@@ -158,15 +158,16 @@ class PushTEnv(gym.Env):
             action_diff = action - self.latest_action
         if action is not None:
             self.latest_action = action
+            th = self.goal_pose[-1]
+            rotmat_blk = np.array([[np.cos(th), -np.sin(th)],
+                                    [np.sin(th), np.cos(th)]])  
+            action = np.reshape(action, [2, 1])
+            action = rotmat_blk @ action
             for i in range(n_steps):
                 # action = self.block.local_to_world(tuple(action))
-                th = self.goal_pose[-1]
+                
                 # rotmat_blk = np.array([[r.x, -r.y],
                 #                         [r.y,  r.x]])
-                rotmat_blk = np.array([[np.cos(th), -np.sin(th)],
-                                       [np.sin(th), np.cos(th)]])  
-                action = np.reshape(action, [2, 1])
-                action = rotmat_blk @ action
                 # Step PD control.
                 # P control works too.
                 # self.agent.velocity = Vec2d(*(self.k_p * (action - self.agent.position)))
@@ -664,6 +665,7 @@ class PushTCurriculumEnv(PushTEnv):
         if self.success_numbers >= self.success_number_every_stage and self.curriculum_level <= 0.99:
             self.curriculum_level += 1 / self.total_stage
             logging.log(logging.INFO, f"update curriculum level to {self.curriculum_level:.3f}")
+            print(f"update curriculum level to {self.curriculum_level:.3f}")
             self.success_numbers = 0
 
     def set_curriculum_level(self, level):
