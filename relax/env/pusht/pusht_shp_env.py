@@ -138,9 +138,9 @@ class PushTShpCurriculumRandomGoalEnv(PushTCurriculumEnv):
                          random_goal_pose=True)
 
         self.observation_space = spaces.Box(
-            low=np.array([-8, -8, -8, -8, 0, 0, 0, 0, 0, 0,], dtype=np.float32),
-            high=np.array([8, 8, 8, 8, 1, 1, 1, 1, 1, 1], dtype=np.float32),
-            shape=(10,),
+            low=np.array([-8, -8, -8, -8, 0, 0,-8, -8, 0, 0, 0, 0, 0, 0,], dtype=np.float32),
+            high=np.array([8, 8, 8, 8, 1, 1, 8, 8, 1, 1, 1, 1, 1, 1], dtype=np.float32),
+            shape=(14,),
             dtype=np.float32
         )
 
@@ -163,11 +163,13 @@ class PushTShpCurriculumRandomGoalEnv(PushTCurriculumEnv):
         return obs.astype(np.float32)
     
     def get_obs_rela_goal(self):
-        # obs = np.array(
-        #     tuple(self.agent.position / self.window_size)
-        #     + tuple(self.block.position / self.window_size)
-        #     + ((self.block.angle % (2 * np.pi)) / (2*np.pi),))
-        # return obs.astype(np.float32)
+        obs = np.array(
+            tuple(self.agent.position / self.window_size)
+            + tuple(self.block.position / self.window_size)
+            + (np.sin(self.block.angle), np.cos(self.block.angle))
+            + tuple(self.goal_pose[0:2] / self.window_size)
+            + (np.sin(self.goal_pose[-1]), np.cos(self.goal_pose[-1])))
+        return obs.astype(np.float32)
 
         # based on block frame
         
@@ -214,5 +216,5 @@ if __name__ == "__main__":
     for i in range(300):
         obs, _, _, _, _ = env.step(env.action_space.sample())
         print(obs)
-        env.render()
+        # env.render()
         time.sleep(0.01)

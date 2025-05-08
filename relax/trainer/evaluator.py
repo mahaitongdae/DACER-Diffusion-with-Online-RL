@@ -71,8 +71,21 @@ class Logger(object):
    
 class LoggerWithSuccessRate(object):
 
-	def __init__(self, log_dir):
-		self.path = os.path.join(log_dir, 'log.csv')
+	def __init__(self, log_dir, name='log.csv'):
+		self.path = os.path.join(log_dir, name)
+		with open(self.path, mode='w', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow(['step', 'avg_ret', 'std_ret', 'avg_suc_rate', 'std_suc_rate'])
+
+	def log(self, step, avg_ret, std_ret, avg_suc_rate, std_suc_rate):
+		with open(self.path, mode='a', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerow([step, avg_ret, std_ret, avg_suc_rate, std_suc_rate])
+   
+class LoggerWithSuccessRateLength(object):
+
+	def __init__(self, log_dir, name='log.csv'):
+		self.path = os.path.join(log_dir, name)
 		with open(self.path, mode='w', newline='') as f:
 			writer = csv.writer(f)
 			writer.writerow(['step', 'avg_ret', 'std_ret', 'avg_suc_rate', 'std_suc_rate'])
