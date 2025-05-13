@@ -130,11 +130,16 @@ class Diffv2(Algorithm):
 
             new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), obs)
             diff_key1, diff_key2 = jax.random.split(diffusion_noise_key, 2)
-            t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
+            # t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
+            lmbda = 0.8
+            steps = jnp.arange(0, self.agent.num_timesteps, dtype=jnp.float32)
+            weights_exponential = jnp.exp(-lmbda * steps + 1)
+            prob_exponential = weights_exponential / weights_exponential.sum()
+            t = jax.random.choice(diffusion_time_key, self.agent.num_timesteps, shape=(next_obs.shape[0],), p=prob_exponential)
             noise1 = jax.random.normal(diff_key1, action.shape)
-            # tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
+            tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
             # tilde_at = jax.random.uniform(diff_key1, action.shape, minval=-1, maxval=1)
-            tilde_at = new_action
+            # tilde_at = new_action
 
             def policy_loss_fn(policy_params) -> jax.Array:
                 
@@ -148,7 +153,7 @@ class Diffv2(Algorithm):
                 recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
                 q_min = get_min_q(obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
-                norm_q = (q_min - running_mean) / running_std
+                norm_q = (q_min - running_mean) / running_std * 5. / jnp.exp(log_alpha)
                 # norm_q = q_min / running_std
                 # scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 scaled_q = norm_q # / jnp.exp(log_alpha)
@@ -239,6 +244,7 @@ class Diffv2(Algorithm):
                 "q_weights_min": jnp.min(q_weights),
                 "q_weights_max": jnp.max(q_weights),
                 "hist_q_weights": q_weights,
+                "hist_t": t,
                 "scale_q_mean": jnp.mean(scaled_q),
                 "scale_q_std": jnp.std(scaled_q),
                 "running_q_mean": new_running_mean,

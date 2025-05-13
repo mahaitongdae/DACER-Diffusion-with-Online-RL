@@ -78,7 +78,8 @@ class OffPolicyTrainer:
         # self.eval_interval = Interval()
         wandb.init(project="sdac",
                    name=log_path.name,
-                   dir=log_path)
+                   dir=log_path,
+                   group=env.spec.id)
 
     def setup(self, dummy_data: Experience):
         self.algorithm.warmup(dummy_data)
