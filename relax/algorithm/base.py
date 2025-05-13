@@ -7,7 +7,7 @@ import jax, jax.numpy as jnp
 
 from relax.utils.experience import Experience
 from relax.utils.persistence import make_persist
-from relax.utils.typing import Metric
+from relax.utils.typing_utils import Metric
 
 
 class Algorithm:

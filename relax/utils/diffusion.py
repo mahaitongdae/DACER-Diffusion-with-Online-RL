@@ -72,6 +72,10 @@ class BetaScheduleCoefficients:
         betas = 1 - alphas_cumprod[1:] / alphas_cumprod[:-1]
         betas = np.clip(betas, 0, 0.999)
         return betas
+    
+    @staticmethod
+    def linear_beta_schedule(timesteps: int, beta_start=1e-4, beta_end=0.02):
+        return np.linspace(beta_start, beta_end, timesteps, dtype=np.float64)
 
 @dataclass(frozen=True)
 class GaussianDiffusion:
@@ -79,7 +83,7 @@ class GaussianDiffusion:
 
     def beta_schedule(self):
         with jax.ensure_compile_time_eval():
-            betas = BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
+            betas = 0.02 * BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
             return BetaScheduleCoefficients.from_beta(betas)
 
     def p_mean_variance(self, t: int, x: jax.Array, noise_pred: jax.Array):
@@ -143,4 +147,12 @@ class GaussianDiffusion:
         noise_pred = model(t, x_t)
         loss = weights * optax.squared_error(noise_pred, noise)
         return loss.mean()
+    
+
+if __name__ == '__main__':
+    diffusion = GaussianDiffusion(20)
+    beta_schedule = diffusion.beta_schedule()
+    print(beta_schedule.betas)
+    print(beta_schedule.sqrt_one_minus_alphas_cumprod)
+    print(beta_schedule.sqrt_recipm1_alphas_cumprod)
 

@@ -10,7 +10,7 @@ from relax.algorithm.base import Algorithm
 from relax.network.dacer import DACERNet, DACERParams
 from relax.network.diffv2 import Diffv2Net, Diffv2Params
 from relax.utils.experience import Experience
-from relax.utils.typing import Metric
+from relax.utils.typing_utils import Metric
 
 
 class Diffv2OptStates(NamedTuple):
@@ -143,11 +143,11 @@ class Diffv2(Algorithm):
                 # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                 #                                             jax.lax.stop_gradient(next_action))
                 noise2 = jax.random.normal(diff_key2, action.shape)
-                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
+                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2) # .clip(-1, 1)
                 q_min = get_min_q(obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
-                # norm_q = (q_min - running_mean) / running_std
-                norm_q = q_min / running_std
+                norm_q = (q_min - running_mean) / running_std
+                # norm_q = q_min / running_std
                 # scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 scaled_q = norm_q # / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)

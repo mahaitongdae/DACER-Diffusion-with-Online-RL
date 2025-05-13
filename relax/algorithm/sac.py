@@ -7,7 +7,7 @@ import haiku as hk
 from relax.algorithm.base import Algorithm
 from relax.network.sac import SACNet, SACParams
 from relax.utils.experience import Experience
-from relax.utils.typing import Metric
+from relax.utils.typing_utils import Metric
 
 
 class SACOptStates(NamedTuple):

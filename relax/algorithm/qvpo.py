@@ -11,7 +11,7 @@ from relax.network.dacer import DACERNet, DACERParams
 from relax.network.diffv2 import Diffv2Net, Diffv2Params
 from relax.network.qvpo import QVPONet, QVPOParams
 from relax.utils.experience import Experience
-from relax.utils.typing import Metric
+from relax.utils.typing_utils import Metric
 
 
 class QVPOOptStates(NamedTuple):

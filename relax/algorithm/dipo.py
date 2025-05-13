@@ -8,7 +8,7 @@ from relax.algorithm.base import Algorithm
 from relax.buffer.tree import TreeBuffer
 from relax.network.dipo import DIPONet, DIPOParams
 from relax.utils.experience import Experience, ObsActionPair
-from relax.utils.typing import Metric
+from relax.utils.typing_utils import Metric
 
 
 class DIPOOptStates(NamedTuple):
