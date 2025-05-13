@@ -128,22 +128,24 @@ class Diffv2(Algorithm):
 
             prev_entropy = state.entropy if hasattr(state, 'entropy') else jnp.float32(0.0)
 
-            action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
+            new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), obs)
             diff_key1, diff_key2 = jax.random.split(diffusion_noise_key, 2)
             t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
             noise1 = jax.random.normal(diff_key1, action.shape)
-            tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, action, noise1)
+            # tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
+            # tilde_at = jax.random.uniform(diff_key1, action.shape, minval=-1, maxval=1)
+            tilde_at = new_action
 
             def policy_loss_fn(policy_params) -> jax.Array:
                 
                 # q_weights = q_weights
                 def denoiser(t, x):
-                    return self.agent.policy(policy_params, next_obs, x, t)
+                    return self.agent.policy(policy_params, obs, x, t)
                 
                 # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                 #                                             jax.lax.stop_gradient(next_action))
                 noise2 = jax.random.normal(diff_key2, action.shape)
-                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2) # .clip(-1, 1)
+                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
                 q_min = get_min_q(obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
                 norm_q = (q_min - running_mean) / running_std
@@ -236,6 +238,7 @@ class Diffv2(Algorithm):
                 "q_weights_mean": jnp.mean(q_weights),
                 "q_weights_min": jnp.min(q_weights),
                 "q_weights_max": jnp.max(q_weights),
+                "hist_q_weights": q_weights,
                 "scale_q_mean": jnp.mean(scaled_q),
                 "scale_q_std": jnp.std(scaled_q),
                 "running_q_mean": new_running_mean,

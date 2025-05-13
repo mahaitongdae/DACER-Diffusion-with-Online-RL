@@ -81,9 +81,9 @@ class BetaScheduleCoefficients:
 class GaussianDiffusion:
     num_timesteps: int
 
-    def beta_schedule(self):
+    def beta_schedule(self, scale=0.3):
         with jax.ensure_compile_time_eval():
-            betas = 0.02 * BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
+            betas = scale * BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
             return BetaScheduleCoefficients.from_beta(betas)
 
     def p_mean_variance(self, t: int, x: jax.Array, noise_pred: jax.Array):
@@ -151,8 +151,9 @@ class GaussianDiffusion:
 
 if __name__ == '__main__':
     diffusion = GaussianDiffusion(20)
-    beta_schedule = diffusion.beta_schedule()
-    print(beta_schedule.betas)
-    print(beta_schedule.sqrt_one_minus_alphas_cumprod)
-    print(beta_schedule.sqrt_recipm1_alphas_cumprod)
+    beta_schedule = diffusion.beta_schedule(scale=0.3)
+    print("betas", beta_schedule.betas)
+    print("sqrt 1 - bar alpha", beta_schedule.sqrt_one_minus_alphas_cumprod)
+    print("sqrt 1 over bar alpha", beta_schedule.sqrt_recip_alphas_cumprod)
+    print("sqrt 1 - bar alpha over bar alpha", beta_schedule.sqrt_recipm1_alphas_cumprod)
 

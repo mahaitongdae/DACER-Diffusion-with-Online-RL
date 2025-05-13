@@ -9,6 +9,7 @@ from gymnasium import Env
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
 from tensorboardX.summary import hparams
+import wandb
 
 from relax.algorithm import Algorithm
 from relax.buffer import ExperienceBuffer
@@ -75,6 +76,9 @@ class OffPolicyTrainer:
         self.sample_log_interval = Interval(self.sample_log_n_episode)
         self.save_policy_interval = Interval(self.save_policy_every)
         # self.eval_interval = Interval()
+        wandb.init(project="sdac",
+                   name=log_path.name,
+                   dir=log_path)
 
     def setup(self, dummy_data: Experience):
         self.algorithm.warmup(dummy_data)
@@ -150,11 +154,12 @@ class OffPolicyTrainer:
     def update(self, update_key: jax.Array):
         ul = self.update_log
         data = self.buffer.sample(self.batch_size)
-        info = self.algorithm.update(update_key, data)
+        info, dist_info = self.algorithm.update(update_key, data)
 
         ul.add(info)
 
         if ul.update_step % self.update_log_n_step == 0:
+            self.add_hist(dist_info, ul.update_step * 5)
             ul.log(self.add_scalar)
 
     def train(self, key: jax.Array):
@@ -188,7 +193,14 @@ class OffPolicyTrainer:
 
     def add_scalar(self, tag: str, value: float, step: int):
         self.last_metrics[tag] = value
+        wandb.log({tag: value}, step=step)
         self.logger.add_scalar(tag, value, step)
+        self.logger.flush()
+        
+    def add_hist(self, info_hist, step):
+        for tag, value in info_hist.items():
+            self.logger.add_histogram(tag, np.array(value), step)
+            wandb.log({tag: wandb.Histogram(np.array(value))}, step=step)
         self.logger.flush()
 
     def run(self, key: jax.Array):

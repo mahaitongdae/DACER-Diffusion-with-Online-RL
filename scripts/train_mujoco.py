@@ -148,6 +148,7 @@ if __name__ == "__main__":
         save_policy_every=int(args.total_step / 20),
         warmup_with="random",
         log_path=exp_dir,
+        update_log_n_step=1 if args.debug else 1000,
     )
 
     trainer.setup(Experience.create_example(obs_dim, act_dim, trainer.batch_size))

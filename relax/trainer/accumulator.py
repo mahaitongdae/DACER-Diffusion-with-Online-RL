@@ -159,7 +159,7 @@ class UpdateLog:
         self.accumulator.add_all(metrics)
 
     def log(self, log_fn: Callable[[str, float, int], None]):
-        self.accumulator.log(lambda k, v: log_fn(k, v, self.update_step))
+        self.accumulator.log(lambda k, v: log_fn(k, v, self.update_step * 5))
         self.accumulator.reset()
 
 
