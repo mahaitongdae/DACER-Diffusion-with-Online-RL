@@ -49,6 +49,11 @@ class Algorithm:
         policy = jax.device_get(self.get_policy_params())
         with open(path, "wb") as f:
             pickle.dump(policy, f)
+            
+    def save_q(self, path: str) -> None:
+        policy = jax.device_get(self.get_value_params())
+        with open(path, "wb") as f:
+            pickle.dump(policy, f)
 
     def save_policy_structure(self, root: os.PathLike, dummy_obs: jax.Array) -> None:
         root = Path(root)
@@ -61,6 +66,18 @@ class Algorithm:
         stochastic.save_info(root / "stochastic.txt")
         deterministic.save(root / "deterministic.pkl")
         deterministic.save_info(root / "deterministic.txt")
+
+    def save_q_structure(self, root: os.PathLike, dummy_obs: jax.Array, dummy_action: jax.Array) -> None:
+        root = Path(root)
+
+        key = jax.random.key(0)
+        # stochastic = make_persist(self._get_value._fun)(key, self.get_policy_params(), dummy_obs)
+        deterministic = make_persist(self._get_value._fun)(self.get_value_params(), dummy_obs, dummy_action) # []
+
+        # stochastic.save(root / "stochastic.pkl")
+        # stochastic.save_info(root / "stochastic.txt")
+        deterministic.save(root / "q_func.pkl")
+        deterministic.save_info(root / "q_func.txt")
 
     def get_policy_params(self):
         return self.state.params.policy

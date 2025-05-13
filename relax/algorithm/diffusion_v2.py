@@ -5,12 +5,15 @@ import numpy as np
 import optax
 import haiku as hk
 import pickle
+import os
+from pathlib import Path
 
 from relax.algorithm.base import Algorithm
 from relax.network.dacer import DACERNet, DACERParams
 from relax.network.diffv2 import Diffv2Net, Diffv2Params
 from relax.utils.experience import Experience
 from relax.utils.typing_utils import Metric
+from relax.utils.persistence import make_persist
 
 
 class Diffv2OptStates(NamedTuple):
@@ -150,7 +153,7 @@ class Diffv2(Algorithm):
                 # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                 #                                             jax.lax.stop_gradient(next_action))
                 noise2 = jax.random.normal(diff_key2, action.shape)
-                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
+                recon = self.agent.diffusion.get_recon(t, tilde_at, noise1).clip(-1, 1)
                 q_min = get_min_q(obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
                 norm_q = (q_min - running_mean) / running_std * 5. / jnp.exp(log_alpha)
@@ -159,7 +162,7 @@ class Diffv2(Algorithm):
                 scaled_q = norm_q # / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
                 # t_weights = self.agent.diffusion.beta_schedule().alphas_cumprod[t] ** 3
-                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise2,
+                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise1,
                                                                             q_weights, #  * t_weights
                                                                             denoiser,
                                                                             t,
@@ -259,7 +262,10 @@ class Diffv2(Algorithm):
             }
             return state, info
 
-        self._implement_common_behavior(stateless_update, self.agent.get_action, self.agent.get_deterministic_action)
+        self._implement_common_behavior(stateless_update, 
+                                        self.agent.get_action, 
+                                        self.agent.get_deterministic_action,
+                                        stateless_get_value=self.agent.q)
 
     def get_policy_params(self):
         return (self.state.params.policy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2 )
@@ -271,6 +277,23 @@ class Diffv2(Algorithm):
         policy = jax.device_get(self.get_policy_params_to_save())
         with open(path, "wb") as f:
             pickle.dump(policy, f)
+            
+    def save_q_structure(self, root: os.PathLike, dummy_obs: jax.Array, dummy_action: jax.Array) -> None:
+        root = Path(root)
+
+        key = jax.random.key(0)
+        deterministic = make_persist(self._get_value._fun)(self.get_value_params()[0], dummy_obs, dummy_action) # []
+
+        deterministic.save(root / "q_func.pkl")
+        deterministic.save_info(root / "q_func.txt")
+            
+    def get_value_params(self):
+        return self.state.params.q1, self.state.params.q2
+    
+    def save_q(self, path: str) -> None:
+        value = jax.device_get(self.get_value_params())
+        with open(path, "wb") as f:
+            pickle.dump(value, f)
 
     def get_action(self, key: jax.Array, obs: np.ndarray) -> np.ndarray:
         action = self._get_action(key, self.get_policy_params_to_save(), obs)

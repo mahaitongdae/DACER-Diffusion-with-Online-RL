@@ -37,6 +37,7 @@ class OffPolicyTrainer:
         update_log_n_step: int = 1000,
         done_info_keys: Tuple[str, ...] = (),
         save_policy_every: int = 10000,
+        save_value: bool = True,
         hparams: Optional[dict] = None,
         policy_pkl_template: str = "policy-{sample_step}-{update_step}.pkl",
         warmup_with: str = "random",  # "policy" or "random"
@@ -60,6 +61,7 @@ class OffPolicyTrainer:
         self.save_policy_every = save_policy_every
         self.hparams = hparams
         self.warmup_with = warmup_with
+        self.save_value = save_value
         # TODO: make EpisodeLog and Experience configurable
         # TODO: re-add done_info_keys support
         # TODO: re-add evaluation support
@@ -89,6 +91,8 @@ class OffPolicyTrainer:
         self.progress = tqdm(total=self.total_step, desc="Sample Step", disable=None, dynamic_ncols=True)
 
         self.algorithm.save_policy_structure(self.log_path, dummy_data.obs[0])
+        if self.save_value:
+            self.algorithm.save_q_structure(self.log_path, dummy_obs=dummy_data.obs[0], dummy_action=dummy_data.action[0])
         self.evaluator = subprocess.Popen(
             [
                 sys.executable,
@@ -188,6 +192,10 @@ class OffPolicyTrainer:
                     update_step=ul.update_step,
                 )
                 self.algorithm.save_policy(self.log_path / policy_pkl_name)
+                
+                if self.save_value:
+                    self.algorithm.save_q(self.log_path / policy_pkl_name.replace('policy', 'value'))
+                
 
                 command = f"{sl.sample_step},{self.log_path / policy_pkl_name}\n"
                 self.evaluator.stdin.write(command.encode())
