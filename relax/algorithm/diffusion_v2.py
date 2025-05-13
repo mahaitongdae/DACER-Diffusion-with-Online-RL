@@ -131,7 +131,7 @@ class Diffv2(Algorithm):
             action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
             diff_key1, diff_key2 = jax.random.split(diffusion_noise_key, 2)
             t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
-            noise1 = jax.random.normal(diffusion_noise_key, action.shape)
+            noise1 = jax.random.normal(diff_key1, action.shape)
             tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, action, noise1)
 
             def policy_loss_fn(policy_params) -> jax.Array:
@@ -142,12 +142,12 @@ class Diffv2(Algorithm):
                 
                 # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                 #                                             jax.lax.stop_gradient(next_action))
-                noise2 = jax.random.normal(diffusion_noise_key, action.shape)
-                recon = self.agent.diffusion.get_recon(t, tilde_at, noise1).clip(-1, 1)
+                noise2 = jax.random.normal(diff_key2, action.shape)
+                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
                 q_min = get_min_q(obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
                 # norm_q = (q_min - running_mean) / running_std
-                norm_q = (q_min - jnp.min(q_min)) / running_std
+                norm_q = q_min / running_std
                 # scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 scaled_q = norm_q # / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
@@ -158,10 +158,12 @@ class Diffv2(Algorithm):
                                                                             t,
                                                                             tilde_at,)
 
-                return loss, (q_weights, scaled_q, q_mean, q_std)
+                return loss, (q_weights, scaled_q, q_mean, q_std, recon)
 
-            (total_loss, (q_weights, scaled_q, q_mean, q_std)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
+            (total_loss, (q_weights, scaled_q, q_mean, q_std, recon)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
 
+            act_diff = jnp.linalg.norm(recon - action, axis=1)
+            
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
                 approx_entropy = 0.5 * self.agent.act_dim * jnp.log( 2 * jnp.pi * jnp.exp(1) * (0.1 * jnp.exp(log_alpha)) ** 2)
@@ -238,6 +240,9 @@ class Diffv2(Algorithm):
                 "scale_q_std": jnp.std(scaled_q),
                 "running_q_mean": new_running_mean,
                 "running_q_std": new_running_std,
+                "act_diff_max": jnp.max(act_diff),
+                "act_diff_mean": jnp.mean(act_diff),
+                "act_diff_min": jnp.min(act_diff),
                 # "mean_q1_std": mean_q1_std,
                 # "mean_q2_std": mean_q2_std,
                 # "entropy": entropy,

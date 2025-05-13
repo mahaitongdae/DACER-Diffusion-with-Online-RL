@@ -50,6 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=100)
     parser.add_argument("--num_particles", type=int, default=32)
     parser.add_argument("--noise_scale", type=float, default=0.1)
+    parser.add_argument("--cluster", default=False, action="store_true")
     parser.add_argument("--debug", action='store_true', default=False)
     args = parser.parse_args()
 
@@ -132,6 +133,9 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Invalid algorithm {args.alg}!")
 
+    if args.cluster:
+        PROJECT_ROOT = Path('/n/netscratch/nali_lab_seas/Lab/haitongma/sdac_logs')
+    
     exp_dir = PROJECT_ROOT / "logs" / args.env / (args.alg + '_' + time.strftime("%Y-%m-%d_%H-%M-%S") + f'_s{args.seed}_{args.suffix}')
     trainer = OffPolicyTrainer(
         env=env,
