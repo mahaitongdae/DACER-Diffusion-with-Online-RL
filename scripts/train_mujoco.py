@@ -52,6 +52,8 @@ if __name__ == "__main__":
     parser.add_argument("--noise_scale", type=float, default=0.1)
     parser.add_argument("--cluster", default=False, action="store_true")
     parser.add_argument("--debug", action='store_true', default=False)
+    parser.add_argument("--beta_schedule_scale", type=float, default=0.8)
+    parser.add_argument("--beta_schedule_type", type=str, default='linear')
     args = parser.parse_args()
 
     if args.debug:
@@ -86,7 +88,8 @@ if __name__ == "__main__":
         agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
                                           num_timesteps=args.diffusion_steps, 
                                           num_particles=args.num_particles, 
-                                          noise_scale=args.noise_scale)
+                                          noise_scale=args.noise_scale,
+                                          beta_schedule_scale=args.beta_schedule_scale)
         algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
     elif args.alg == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=args.num_particles)

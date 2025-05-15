@@ -29,10 +29,14 @@ class Diffv2Net:
     num_particles: int
     target_entropy: float
     noise_scale: float
+    beta_schedule_scale: float
+    beta_schedule_type: str = 'linear'
 
     @property
     def diffusion(self) -> GaussianDiffusion:
-        return GaussianDiffusion(self.num_timesteps)
+        return GaussianDiffusion(self.num_timesteps, 
+                                 self.beta_schedule_scale,
+                                 self.beta_schedule_type)
 
     def get_action(self, key: jax.Array, policy_params: hk.Params, obs: jax.Array) -> jax.Array:
         policy_params, log_alpha, q1_params, q2_params = policy_params
@@ -98,6 +102,7 @@ def create_diffv2_net(
     num_particles: int = 4,
     noise_scale: float = 0.05,
     target_entropy_scale: float = 0.9,
+    beta_schedule_scale: float = 0.3,
     ) -> Tuple[Diffv2Net, Diffv2Params]:
     # q = hk.without_apply_rng(hk.transform(lambda obs, act: DistributionalQNet2(hidden_sizes, activation)(obs, act)))
     q = hk.without_apply_rng(hk.transform(lambda obs, act: QNet(hidden_sizes, activation)(obs, act)))
@@ -120,5 +125,6 @@ def create_diffv2_net(
     params = init(key, sample_obs, sample_act)
 
     net = Diffv2Net(q=q.apply, policy=policy.apply, num_timesteps=num_timesteps, act_dim=act_dim, 
-                    target_entropy=-act_dim*target_entropy_scale, num_particles=num_particles, noise_scale=noise_scale)
+                    target_entropy=-act_dim*target_entropy_scale, num_particles=num_particles, noise_scale=noise_scale,
+                    beta_schedule_scale=beta_schedule_scale)
     return net, params

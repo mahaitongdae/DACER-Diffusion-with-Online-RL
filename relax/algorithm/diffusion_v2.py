@@ -133,14 +133,16 @@ class Diffv2(Algorithm):
 
             new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), obs)
             diff_key1, diff_key2 = jax.random.split(diffusion_noise_key, 2)
-            # t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
-            lmbda = 0.8
-            steps = jnp.arange(0, self.agent.num_timesteps, dtype=jnp.float32)
-            weights_exponential = jnp.exp(-lmbda * steps + 1)
-            prob_exponential = weights_exponential / weights_exponential.sum()
-            t = jax.random.choice(diffusion_time_key, self.agent.num_timesteps, shape=(next_obs.shape[0],), p=prob_exponential)
+            t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
+            # lmbda = 0.8
+            # steps = jnp.arange(0, self.agent.num_timesteps, dtype=jnp.float32)
+            # weights_exponential = jnp.exp(-lmbda * steps + 1)
+            # prob_exponential = weights_exponential / weights_exponential.sum()
+            # t = jax.random.choice(diffusion_time_key, self.agent.num_timesteps, shape=(next_obs.shape[0],), p=prob_exponential)
             noise1 = jax.random.normal(diff_key1, action.shape)
-            tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
+            # tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
+            scale_ = self.agent.diffusion.beta_schedule().sqrt_alphas_cumprod[t][:, jnp.newaxis]
+            tilde_at = scale_ * new_action
             # tilde_at = jax.random.uniform(diff_key1, action.shape, minval=-1, maxval=1)
             # tilde_at = new_action
 
@@ -153,16 +155,16 @@ class Diffv2(Algorithm):
                 # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
                 #                                             jax.lax.stop_gradient(next_action))
                 noise2 = jax.random.normal(diff_key2, action.shape)
-                recon = self.agent.diffusion.get_recon(t, tilde_at, noise1).clip(-1, 1)
+                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
                 q_min = get_min_q(obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
-                norm_q = (q_min - running_mean) / running_std * 5. / jnp.exp(log_alpha)
+                norm_q = (q_min - running_mean) / running_std #  * 5. / jnp.exp(log_alpha)
                 # norm_q = q_min / running_std
                 # scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
                 scaled_q = norm_q # / jnp.exp(log_alpha)
                 q_weights = jnp.exp(scaled_q)
                 # t_weights = self.agent.diffusion.beta_schedule().alphas_cumprod[t] ** 3
-                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise1,
+                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise2,
                                                                             q_weights, #  * t_weights
                                                                             denoiser,
                                                                             t,

@@ -33,7 +33,7 @@ def plot_mean(patterns_dict: Dict, env_name, fig_name = None,
         total_df = total_df[total_df['step'] < max_steps]
     sns.lineplot(data=total_df, x='step', y='avg_ret', hue='alg')
     if fig_name is not None:
-        plt.savefig(str)
+        plt.savefig(fig_name)
     else:
         plt.show()
     
@@ -62,7 +62,7 @@ def load_best_results(pattern, env_name, show_df=False,
     total_df = pd.concat(dfs, ignore_index=True, axis=1).T
     if show_df:
         print(total_df.to_markdown())
-    print(f"${total_df['avg_ret'].mean():.0f} \pm {total_df['avg_ret'].std():.0f}$")
+    print(f"${total_df['avg_ret'].mean():.3f} \pm {total_df['avg_ret'].std():.3f}$")
     return total_df
 
 if __name__ == "__main__":

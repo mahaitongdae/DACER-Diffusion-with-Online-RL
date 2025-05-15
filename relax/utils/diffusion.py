@@ -74,16 +74,21 @@ class BetaScheduleCoefficients:
         return betas
     
     @staticmethod
-    def linear_beta_schedule(timesteps: int, beta_start=1e-4, beta_end=0.02):
+    def linear_beta_schedule(timesteps: int, beta_start=1e-4, beta_end=0.999):
         return np.linspace(beta_start, beta_end, timesteps, dtype=np.float64)
 
 @dataclass(frozen=True)
 class GaussianDiffusion:
     num_timesteps: int
+    beta_schedule_scale: float = 0.3
+    beta_schedule_type: str = 'linear'
 
-    def beta_schedule(self, scale=0.3):
+    def beta_schedule(self):
         with jax.ensure_compile_time_eval():
-            betas = scale * BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
+            if self.beta_schedule_type == 'linear':
+                betas = self.beta_schedule_scale * BetaScheduleCoefficients.linear_beta_schedule(self.num_timesteps)
+            elif self.beta_schedule_type == 'cosine':
+                betas = self.beta_schedule_scale * BetaScheduleCoefficients.cosine_beta_schedule(self.num_timesteps)
             return BetaScheduleCoefficients.from_beta(betas)
 
     def p_mean_variance(self, t: int, x: jax.Array, noise_pred: jax.Array):
