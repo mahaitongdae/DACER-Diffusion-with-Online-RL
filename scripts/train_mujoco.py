@@ -15,6 +15,7 @@ from relax.algorithm.qsm import QSM
 from relax.algorithm.dipo import DIPO
 from relax.algorithm.qvpo import QVPO
 from relax.algorithm.diffusion_v2 import Diffv2
+from relax.algorithm.idem import IDEM
 from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
 from relax.network.dsact import create_dsact_net
@@ -91,6 +92,16 @@ if __name__ == "__main__":
                                           noise_scale=args.noise_scale,
                                           beta_schedule_scale=args.beta_schedule_scale)
         algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
+        
+    if args.alg == 'idem':
+        def mish(x: jax.Array):
+            return x * jnp.tanh(jax.nn.softplus(x))
+        agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
+                                          num_timesteps=args.diffusion_steps, 
+                                          num_particles=args.num_particles, 
+                                          noise_scale=args.noise_scale,
+                                          beta_schedule_scale=args.beta_schedule_scale)
+        algorithm = IDEM(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
     elif args.alg == "qsm":
         agent, params = create_qsm_net(init_network_key, obs_dim, act_dim, hidden_sizes, num_timesteps=20, num_particles=args.num_particles)
         algorithm = QSM(agent, params, lr=args.lr, lr_schedule_end=args.lr_schedule_end)
