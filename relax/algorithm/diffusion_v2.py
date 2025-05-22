@@ -131,7 +131,7 @@ class Diffv2(Algorithm):
 
             prev_entropy = state.entropy if hasattr(state, 'entropy') else jnp.float32(0.0)
 
-            # new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), obs)
+            new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), obs)
             diff_key1, diff_key2 = jax.random.split(diffusion_noise_key, 2)
             t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
             # lmbda = 0.8
@@ -140,10 +140,10 @@ class Diffv2(Algorithm):
             # prob_exponential = weights_exponential / weights_exponential.sum()
             # t = jax.random.choice(diffusion_time_key, self.agent.num_timesteps, shape=(next_obs.shape[0],), p=prob_exponential)
             noise1 = jax.random.normal(diff_key1, action.shape)
-            # tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
+            tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
             # scale_ = self.agent.diffusion.beta_schedule().sqrt_alphas_cumprod[t][:, jnp.newaxis]
             # tilde_at = scale_ * new_action
-            tilde_at = jax.random.uniform(diff_key1, action.shape, minval=-1, maxval=1)
+            # tilde_at = jax.random.uniform(diff_key1, action.shape, minval=-1, maxval=1)
             # tilde_at = new_action
             
             # Try muttiple samples to fit loss
@@ -164,11 +164,16 @@ class Diffv2(Algorithm):
                 recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
                 q_min = get_min_q(wide_obs, recon)
                 q_mean, q_std = q_min.mean(), q_min.std()
-                norm_q = (q_min - running_mean) / running_std # * 2. #  * 5. / jnp.exp(log_alpha)
+                q_reshape = q_min.reshape((-1, reverse_mc_num)) # [batch_size, mc_num]
+                Z = jax.nn.logsumexp(q_reshape, axis=1, keepdims=True) # [batch_size, 1]
+                q_weights = jnp.exp(q_reshape - Z).flatten() # [batch_size, mc_num]
+                
+                # norm_q = (q_min - running_mean) / running_std # * 2. #  * 5. / jnp.exp(log_alpha)
+                # norm_q = q_min - jax.nn.logsumexp(q_min)
                 # norm_q = q_min / running_std
                 # scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
-                scaled_q = norm_q # / jnp.exp(log_alpha)
-                q_weights = jnp.exp(scaled_q)
+                # scaled_q = norm_q # / jnp.exp(log_alpha)
+                # q_weights = jnp.exp(scaled_q)
                 # t_weights = self.agent.diffusion.beta_schedule().alphas_cumprod[t] ** 3
                 loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise2,
                                                                             q_weights, #  * t_weights
@@ -176,7 +181,7 @@ class Diffv2(Algorithm):
                                                                             t,
                                                                             tilde_at,)
 
-                return loss, (q_weights, scaled_q, q_mean, q_std, recon)
+                return loss, (q_weights, q_min, q_mean, q_std, recon)
 
             (total_loss, (q_weights, scaled_q, q_mean, q_std, recon)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
 

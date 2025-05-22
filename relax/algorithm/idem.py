@@ -169,34 +169,6 @@ class IDEM(Algorithm):
                 noise_from_score = noisy_score * -1 * self.agent.diffusion.beta_schedule().sqrt_one_minus_alphas_cumprod[t][:, jnp.newaxis]
                 return optax.squared_error(denoiser(t, tilde_at), noise_from_score).mean()
             
-            
-            
-
-            # def policy_loss_fn(policy_params) -> jax.Array:
-                
-            #     # q_weights = q_weights
-            #     def denoiser(t, x):
-            #         return self.agent.policy(policy_params, wide_obs, x, t)
-                
-            #     # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
-            #     #                                             jax.lax.stop_gradient(next_action))
-                
-                
-            #     q_min = get_min_q(wide_obs, recon)
-            #     q_mean, q_std = q_min.mean(), q_min.std()
-            #     norm_q = (q_min - running_mean) / running_std # * 2. #  * 5. / jnp.exp(log_alpha)
-            #     # norm_q = q_min / running_std
-            #     # scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
-            #     scaled_q = norm_q # / jnp.exp(log_alpha)
-            #     q_weights = jnp.exp(scaled_q)
-            #     # t_weights = self.agent.diffusion.beta_schedule().alphas_cumprod[t] ** 3
-            #     loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise2,
-            #                                                                 q_weights, #  * t_weights
-            #                                                                 denoiser,
-            #                                                                 t,
-            #                                                                 tilde_at,)
-
-            #     return loss, (q_weights, scaled_q, q_mean, q_std, recon)
 
             total_loss, policy_grads = jax.value_and_grad(policy_loss_fn)(policy_params)
 

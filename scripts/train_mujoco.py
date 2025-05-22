@@ -82,6 +82,8 @@ if __name__ == "__main__":
     buffer = TreeBuffer.from_experience(obs_dim, act_dim, size=int(1e6), seed=buffer_seed)
 
     gelu = partial(jax.nn.gelu, approximate=False)
+    
+    print(f"Algorithm: {args.alg}")
 
     if args.alg == 'diffv2_rev':
         def mish(x: jax.Array):
@@ -93,7 +95,7 @@ if __name__ == "__main__":
                                           beta_schedule_scale=args.beta_schedule_scale)
         algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
         
-    if args.alg == 'idem':
+    elif args.alg == 'idem':
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
