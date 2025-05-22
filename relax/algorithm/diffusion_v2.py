@@ -162,7 +162,7 @@ class Diffv2(Algorithm):
                 #                                             jax.lax.stop_gradient(next_action))
                 noise2 = jax.random.normal(diff_key2, (action.shape[0] * reverse_mc_num, action.shape[1]))
                 recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
-                q_min = get_min_q(wide_obs, recon)
+                q_min = get_min_q(wide_obs, recon) * 5. / jnp.exp(log_alpha) # 5 is the initial alpha value
                 q_mean, q_std = q_min.mean(), q_min.std()
                 q_reshape = q_min.reshape((-1, reverse_mc_num)) # [batch_size, mc_num]
                 Z = jax.nn.logsumexp(q_reshape, axis=1, keepdims=True) # [batch_size, 1]
