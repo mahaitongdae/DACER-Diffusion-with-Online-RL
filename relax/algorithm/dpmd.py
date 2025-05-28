@@ -5,15 +5,12 @@ import numpy as np
 import optax
 import haiku as hk
 import pickle
-import os
-from pathlib import Path
 
 from relax.algorithm.base import Algorithm
 from relax.network.dacer import DACERNet, DACERParams
 from relax.network.diffv2 import Diffv2Net, Diffv2Params
 from relax.utils.experience import Experience
-from relax.utils.typing_utils import Metric
-from relax.utils.persistence import make_persist
+from relax.utils.typing import Metric
 
 
 class Diffv2OptStates(NamedTuple):
@@ -31,7 +28,7 @@ class Diffv2TrainState(NamedTuple):
     running_mean: float
     running_std: float
 
-class Diffv2(Algorithm):
+class DPMD(Algorithm):
 
     def __init__(
         self,
@@ -47,6 +44,7 @@ class Diffv2(Algorithm):
         delay_update: int = 2,
         reward_scale: float = 0.2,
         num_samples: int = 200,
+        use_ema: bool = True,
     ):
         self.agent = agent
         self.gamma = gamma
@@ -80,6 +78,7 @@ class Diffv2(Algorithm):
             running_mean=jnp.float32(0.0),
             running_std=jnp.float32(1.0)
         )
+        self.use_ema = use_ema
 
         @jax.jit
         def stateless_update(
@@ -108,8 +107,6 @@ class Diffv2(Algorithm):
                 q = jnp.minimum(q1, q2)
                 return q
 
-            # compute target q
-            # next_action = self.agent.get_batch_actions(next_eval_key, (policy_params, log_alpha), next_obs, get_min_q)
             next_action = self.agent.get_action(next_eval_key, (policy_params, log_alpha, q1_params, q2_params), next_obs)
             q1_target = self.agent.q(target_q1_params, next_obs, next_action)
             q2_target = self.agent.q(target_q2_params, next_obs, next_action)
@@ -123,74 +120,32 @@ class Diffv2(Algorithm):
 
             (q1_loss, q1), q1_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q1_params)
             (q2_loss, q2), q2_grads = jax.value_and_grad(q_loss_fn, has_aux=True)(q2_params)
-            # q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
-            # q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
-            # q1_params = optax.apply_updates(q1_params, q1_update)
-            # q2_params = optax.apply_updates(q2_params, q2_update)
+            q1_update, q1_opt_state = self.optim.update(q1_grads, q1_opt_state)
+            q2_update, q2_opt_state = self.optim.update(q2_grads, q2_opt_state)
+            q1_params = optax.apply_updates(q1_params, q1_update)
+            q2_params = optax.apply_updates(q2_params, q2_update)
 
-
-            prev_entropy = state.entropy if hasattr(state, 'entropy') else jnp.float32(0.0)
-
-            new_action = self.agent.get_action(new_eval_key, (policy_params, log_alpha, q1_params, q2_params), obs)
-            diff_key1, diff_key2 = jax.random.split(diffusion_noise_key, 2)
-            t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
-            # lmbda = 0.8
-            # steps = jnp.arange(0, self.agent.num_timesteps, dtype=jnp.float32)
-            # weights_exponential = jnp.exp(-lmbda * steps + 1)
-            # prob_exponential = weights_exponential / weights_exponential.sum()
-            # t = jax.random.choice(diffusion_time_key, self.agent.num_timesteps, shape=(next_obs.shape[0],), p=prob_exponential)
-            noise1 = jax.random.normal(diff_key1, action.shape)
-            tilde_at = jax.vmap(self.agent.diffusion.q_sample)(t, new_action, noise1)
-            # scale_ = self.agent.diffusion.beta_schedule().sqrt_alphas_cumprod[t][:, jnp.newaxis]
-            # tilde_at = scale_ * new_action
-            # tilde_at = jax.random.uniform(diff_key1, action.shape, minval=-1, maxval=1)
-            # tilde_at = new_action
-            
-            # Try muttiple samples to fit loss
-            reverse_mc_num = 64
-            tilde_at = jnp.repeat(tilde_at, reverse_mc_num, axis=0)
-            t = jnp.repeat(t, reverse_mc_num, axis=0)
-            wide_obs = jnp.repeat(obs, reverse_mc_num, axis=0)
 
             def policy_loss_fn(policy_params) -> jax.Array:
-                
+                q_min = get_min_q(next_obs, next_action)
+                q_mean, q_std = q_min.mean(), q_min.std()
+                norm_q = q_min - running_mean / running_std
+                scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
+                q_weights = jnp.exp(scaled_q)
                 # q_weights = q_weights
                 def denoiser(t, x):
-                    return self.agent.policy(policy_params, wide_obs, x, t)
-                
-                # loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
-                #                                             jax.lax.stop_gradient(next_action))
-                noise2 = jax.random.normal(diff_key2, (action.shape[0] * reverse_mc_num, action.shape[1]))
-                recon = self.agent.diffusion.get_recon(t, tilde_at, noise2).clip(-1, 1)
-                q_min = get_min_q(wide_obs, recon) * 5. / jnp.exp(log_alpha) # 5 is the initial alpha value
-                q_mean, q_std = q_min.mean(), q_min.std()
-                q_reshape = q_min.reshape((-1, reverse_mc_num)) # [batch_size, mc_num]
-                Z = jax.nn.logsumexp(q_reshape, axis=1, keepdims=True) # [batch_size, 1]
-                q_weights = jnp.exp(q_reshape - Z).flatten() # [batch_size, mc_num]
-                
-                # norm_q = (q_min - running_mean) / running_std # * 2. #  * 5. / jnp.exp(log_alpha)
-                # norm_q = q_min - jax.nn.logsumexp(q_min)
-                # norm_q = q_min / running_std
-                # scaled_q = norm_q.clip(-3., 3.) / jnp.exp(log_alpha)
-                # scaled_q = norm_q # / jnp.exp(log_alpha)
-                # q_weights = jnp.exp(scaled_q)
-                # t_weights = self.agent.diffusion.beta_schedule().alphas_cumprod[t] ** 3
-                loss = self.agent.diffusion.reverse_samping_weighted_p_loss(noise2,
-                                                                            q_weights, #  * t_weights
-                                                                            denoiser,
-                                                                            t,
-                                                                            tilde_at,)
+                    return self.agent.policy(policy_params, next_obs, x, t)
+                t = jax.random.randint(diffusion_time_key, (next_obs.shape[0],), 0, self.agent.num_timesteps)
+                loss = self.agent.diffusion.weighted_p_loss(diffusion_noise_key, q_weights, denoiser, t,
+                                                            jax.lax.stop_gradient(next_action))
 
-                return loss, (q_weights, q_min, q_mean, q_std, recon)
+                return loss, (q_weights, scaled_q, q_mean, q_std)
 
-            (total_loss, (q_weights, scaled_q, q_mean, q_std, recon)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
+            (total_loss, (q_weights, scaled_q, q_mean, q_std)), policy_grads = jax.value_and_grad(policy_loss_fn, has_aux=True)(policy_params)
 
-            # act_diff = jnp.linalg.norm(recon - action, axis=1)
-            
             # update alpha
             def log_alpha_loss_fn(log_alpha: jax.Array) -> jax.Array:
                 approx_entropy = 0.5 * self.agent.act_dim * jnp.log( 2 * jnp.pi * jnp.exp(1) * (0.1 * jnp.exp(log_alpha)) ** 2)
-                # log_alpha_loss = -jnp.mean(log_alpha * (-entropy + self.agent.target_entropy))
                 log_alpha_loss = -1 * log_alpha * (-1 * jax.lax.stop_gradient(approx_entropy) + self.agent.target_entropy)
                 return log_alpha_loss
 
@@ -249,36 +204,22 @@ class Diffv2(Algorithm):
                 "q1_mean": jnp.mean(q1),
                 "q1_max": jnp.max(q1),
                 "q1_min": jnp.min(q1),
-                # "q1_std": jnp.mean(q1_std),
                 "q2_loss": q2_loss,
-                # "q2_mean": jnp.mean(q2_mean),
-                # "q2_std": jnp.mean(q2_std),
                 "policy_loss": total_loss,
                 "alpha": jnp.exp(log_alpha),
                 "q_weights_std": jnp.std(q_weights),
                 "q_weights_mean": jnp.mean(q_weights),
                 "q_weights_min": jnp.min(q_weights),
                 "q_weights_max": jnp.max(q_weights),
-                "hist_q_weights": q_weights,
-                "hist_t": t,
                 "scale_q_mean": jnp.mean(scaled_q),
                 "scale_q_std": jnp.std(scaled_q),
                 "running_q_mean": new_running_mean,
                 "running_q_std": new_running_std,
-                # "act_diff_max": jnp.max(act_diff),
-                # "act_diff_mean": jnp.mean(act_diff),
-                # "act_diff_min": jnp.min(act_diff),
-                # "mean_q1_std": mean_q1_std,
-                # "mean_q2_std": mean_q2_std,
-                # "entropy": entropy,
                 "entropy_approx": 0.5 * self.agent.act_dim * jnp.log( 2 * jnp.pi * jnp.exp(1) * (0.1 * jnp.exp(log_alpha)) ** 2),
             }
             return state, info
 
-        self._implement_common_behavior(stateless_update, 
-                                        self.agent.get_action, 
-                                        self.agent.get_deterministic_action,
-                                        stateless_get_value=self.agent.q)
+        self._implement_common_behavior(stateless_update, self.agent.get_action, self.agent.get_deterministic_action)
 
     def get_policy_params(self):
         return (self.state.params.policy, self.state.params.log_alpha, self.state.params.q1, self.state.params.q2 )
@@ -290,43 +231,7 @@ class Diffv2(Algorithm):
         policy = jax.device_get(self.get_policy_params_to_save())
         with open(path, "wb") as f:
             pickle.dump(policy, f)
-            
-    def save_q_structure(self, root: os.PathLike, dummy_obs: jax.Array, dummy_action: jax.Array) -> None:
-        root = Path(root)
-
-        key = jax.random.key(0)
-        deterministic = make_persist(self._get_value._fun)(self.get_value_params()[0], dummy_obs, dummy_action) # []
-
-        deterministic.save(root / "q_func.pkl")
-        deterministic.save_info(root / "q_func.txt")
-            
-    def get_value_params(self):
-        return self.state.params.q1, self.state.params.q2
-    
-    def save_q(self, path: str) -> None:
-        value = jax.device_get(self.get_value_params())
-        with open(path, "wb") as f:
-            pickle.dump(value, f)
 
     def get_action(self, key: jax.Array, obs: np.ndarray) -> np.ndarray:
         action = self._get_action(key, self.get_policy_params_to_save(), obs)
         return np.asarray(action)
-
-def estimate_entropy(actions, num_components=3):  # (batch, sample, dim)
-    import numpy as np
-    from sklearn.mixture import GaussianMixture
-    total_entropy = []
-    for action in actions:
-        gmm = GaussianMixture(n_components=num_components, covariance_type='full')
-        gmm.fit(action)
-        weights = gmm.weights_
-        entropies = []
-        for i in range(gmm.n_components):
-            cov_matrix = gmm.covariances_[i]
-            d = cov_matrix.shape[0]
-            entropy = 0.5 * d * (1 + np.log(2 * np.pi)) + 0.5 * np.linalg.slogdet(cov_matrix)[1]
-            entropies.append(entropy)
-        entropy =  -np.sum(weights * np.log(weights)) + np.sum(weights * np.array(entropies))
-        total_entropy.append(entropy)
-    final_entropy = sum(total_entropy) / len(total_entropy)
-    return final_entropy

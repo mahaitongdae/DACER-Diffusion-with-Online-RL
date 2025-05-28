@@ -14,7 +14,8 @@ from relax.algorithm.dacer_doubleq import DACERDoubleQ
 from relax.algorithm.qsm import QSM
 from relax.algorithm.dipo import DIPO
 from relax.algorithm.qvpo import QVPO
-from relax.algorithm.diffusion_v2 import Diffv2
+from relax.algorithm.sdac import SDAC
+from relax.algorithm.dpmd import DPMD
 from relax.algorithm.idem import IDEM
 from relax.buffer import TreeBuffer
 from relax.network.sac import create_sac_net
@@ -34,7 +35,7 @@ from relax.utils.log_diff import log_git_details
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alg", type=str, default="diffv2_rev")
+    parser.add_argument("--alg", type=str, default="sdac")
     parser.add_argument("--env", type=str, default="HalfCheetah-v4")
     parser.add_argument("--suffix", type=str, default="test_use_atp1")
     parser.add_argument("--num_vec_envs", type=int, default=5)
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     
     print(f"Algorithm: {args.alg}")
 
-    if args.alg == 'diffv2_rev':
+    if args.alg == 'sdac':
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
         agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
@@ -93,8 +94,18 @@ if __name__ == "__main__":
                                           num_particles=args.num_particles, 
                                           noise_scale=args.noise_scale,
                                           beta_schedule_scale=args.beta_schedule_scale)
-        algorithm = Diffv2(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
-        
+        algorithm = SDAC(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
+    
+    elif args.alg == 'dpmd':
+        def mish(x: jax.Array):
+            return x * jnp.tanh(jax.nn.softplus(x))
+        agent, params = create_diffv2_net(init_network_key, obs_dim, act_dim, hidden_sizes, diffusion_hidden_sizes, mish,
+                                          num_timesteps=args.diffusion_steps, 
+                                          num_particles=args.num_particles, 
+                                          noise_scale=args.noise_scale,
+                                          beta_schedule_scale=args.beta_schedule_scale)
+        algorithm = DPMD(agent, params, lr=args.lr, alpha_lr=args.alpha_lr, delay_alpha_update=args.delay_alpha_update, lr_schedule_end=args.lr_schedule_end)
+
     elif args.alg == 'idem':
         def mish(x: jax.Array):
             return x * jnp.tanh(jax.nn.softplus(x))
